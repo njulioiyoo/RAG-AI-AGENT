@@ -1,0 +1,331 @@
+{
+	"info": {
+		"_postman_id": "87654321-4321-4321-4321-876543210987",
+		"name": "Employee Handbook RAG - HR Assistant",
+		"description": "RAG AI Agent specifically for Employee Handbook queries and HR assistance",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "87654321"
+	},
+	"item": [
+		{
+			"name": "System Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						}
+					}
+				},
+				{
+					"name": "Knowledge Base Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "stats"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Employee Handbook Management",
+			"item": [
+				{
+					"name": "Upload Employee Handbook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"filePath\": \"/app/uploads/employee-handbook.md\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/ingest/file",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "ingest", "file"]
+						}
+					}
+				},
+				{
+					"name": "Add HR Policy Document",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Remote Work Policy\",\n  \"content\": \"# Remote Work Policy\\n\\n## Eligibility\\n- Minimum 6 months employment\\n- Manager approval required\\n- Maximum 3 days per week\\n\\n## Requirements\\n- Company laptop mandatory\\n- VPN connection required\\n- Standard working hours: 09:00-17:00\\n\\n## Communication\\n- Daily check-in with team\\n- Weekly one-on-one with manager\\n- Participate in all scheduled meetings\",\n  \"metadata\": {\n    \"category\": \"HR Policy\",\n    \"type\": \"remote_work\",\n    \"department\": \"Human Resources\",\n    \"effective_date\": \"2025-01-01\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/documents",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "documents"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "HR Assistant Chat",
+			"item": [
+				{
+					"name": "Leave Policies",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-leave-{{$timestamp}}\",\n  \"message\": \"How many annual leave days am I entitled to?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Sick Leave Information",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-sick-{{$timestamp}}\",\n  \"message\": \"What is the sick leave policy and do I need a doctor's note?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Working Hours & Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-hours-{{$timestamp}}\",\n  \"message\": \"What are the standard working hours and lunch break schedule?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Salary & Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-salary-{{$timestamp}}\",\n  \"message\": \"When is salary paid each month and what happens if payday falls on a holiday?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Resignation Process",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-resignation-{{$timestamp}}\",\n  \"message\": \"What is the notice period required for resignation and what documents do I need to return?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Benefits & Allowances",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-benefits-{{$timestamp}}\",\n  \"message\": \"What health insurance and transportation benefits are provided by the company?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Performance & Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-training-{{$timestamp}}\",\n  \"message\": \"How often are performance evaluations conducted and can I request training budget?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "Office Facilities",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-facilities-{{$timestamp}}\",\n  \"message\": \"What office facilities are available? Tell me about the cafeteria, library, and rest areas.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				},
+				{
+					"name": "IT & Security Policies",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-security-{{$timestamp}}\",\n  \"message\": \"What are the guidelines for using company devices and social media policies?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Employee Memory Management",
+			"item": [
+				{
+					"name": "Get Employee Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{employeeId}}/memory",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "{{employeeId}}", "memory"]
+						}
+					}
+				},
+				{
+					"name": "Update Employee Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileData\": {\n    \"name\": \"Jane Doe\",\n    \"department\": \"Human Resources\",\n    \"role\": \"HR Specialist\",\n    \"employee_id\": \"HR-001\",\n    \"start_date\": \"2024-03-15\",\n    \"manager\": \"John Smith\"\n  },\n  \"preferences\": {\n    \"language\": \"Indonesian\",\n    \"response_style\": \"detailed\",\n    \"notification_frequency\": \"weekly\",\n    \"preferred_topics\": [\"hr_policies\", \"benefits\", \"leave_management\"]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{employeeId}}/memory",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "{{employeeId}}", "memory"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "employeeId",
+			"value": "emp-001",
+			"type": "string"
+		}
+	]
+}
