@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { RAGAgent } from '../services/ragAgent';
+import { Validator } from '../utils/validation';
+import { ErrorHandler } from '../utils/errors';
 
 export class RAGController {
   private ragAgent: RAGAgent;
@@ -9,18 +11,24 @@ export class RAGController {
   }
 
   async initialize() {
-    await this.ragAgent.initializeKnowledgeBase();
+    try {
+      console.log('🚀 Initializing RAG Controller...');
+      await this.ragAgent.initializeKnowledgeBase();
+      console.log('✅ RAG Controller initialized successfully');
+    } catch (error) {
+      ErrorHandler.logError(error, { context: 'rag_controller_initialization' });
+      throw error;
+    }
   }
 
   async query(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
+      // Validate input
+      Validator.validateQueryRequest(req.body);
+      
       const { query, limit, threshold } = req.body;
-
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({
-          error: 'Query is required and must be a string'
-        });
-      }
 
       const response = await this.ragAgent.query({
         query,
@@ -28,12 +36,23 @@ export class RAGController {
         threshold: threshold || 0.3
       });
 
+      const duration = Date.now() - startTime;
+      console.log(`✅ Query processed in ${duration}ms`);
+      
       res.json(response);
     } catch (error) {
-      console.error('❌ Error in query:', error);
-      res.status(500).json({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      const duration = Date.now() - startTime;
+      ErrorHandler.logError(error, { 
+        context: 'query_endpoint',
+        duration,
+        query: req.body?.query?.substring(0, 50)
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
       });
     }
   }
@@ -103,32 +122,45 @@ export class RAGController {
 
   // Chat endpoint with user memory
   async chat(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
+      // Validate input
+      Validator.validateChatRequest(req.body);
+      
       const { userId, sessionId, message, limit, threshold } = req.body;
 
-      if (!userId || !sessionId || !message) {
-        return res.status(400).json({
-          error: 'userId, sessionId, and message are required'
-        });
-      }
+      // Sanitize inputs
+      const sanitizedMessage = Validator.sanitizeString(message);
+      
+      const response = await this.ragAgent.chat(
+        userId, 
+        sessionId, 
+        sanitizedMessage, 
+        {
+          limit: limit || 5,
+          threshold: threshold || 0.3
+        }
+      );
 
-      if (typeof message !== 'string') {
-        return res.status(400).json({
-          error: 'Message must be a string'
-        });
-      }
-
-      const response = await this.ragAgent.chat(userId, sessionId, message, {
-        limit: limit || 5,
-        threshold: threshold || 0.3
-      });
-
+      const duration = Date.now() - startTime;
+      console.log(`💬 Chat processed for user ${userId} in ${duration}ms`);
+      
       res.json(response);
     } catch (error) {
-      console.error('❌ Error in chat:', error);
-      res.status(500).json({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      const duration = Date.now() - startTime;
+      ErrorHandler.logError(error, { 
+        context: 'chat_endpoint',
+        duration,
+        userId: req.body?.userId,
+        sessionId: req.body?.sessionId
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
       });
     }
   }
