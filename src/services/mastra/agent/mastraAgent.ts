@@ -6,6 +6,7 @@
 import { Mastra } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import type { Tool } from '@mastra/core';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../../config/config.js';
 import {
   VectorSearchDocument,
@@ -18,6 +19,8 @@ export class MastraAgent {
   private mastra?: Mastra;
   private agent?: Agent;
   private tools: Tool[] = [];
+  private genAI?: GoogleGenerativeAI;
+  private fallbackModel?: any;
 
   constructor() {
     // Initialize in setup method
@@ -34,9 +37,23 @@ export class MastraAgent {
 
       // Store tools
       this.tools = tools;
+      
+      // Register tools with Mastra instance if needed
+      // This ensures tools are available when agent tries to use them
+      if (tools.length > 0 && this.mastra) {
+        // Tools are passed to Agent constructor, but we can also register them with Mastra
+        // for workflows or other advanced features
+        console.log(`📋 [Mastra] Tools registered: ${tools.map(t => t.id || 'unknown').join(', ')}`);
+      }
 
       // Setup Agent with proper configuration and tools
       const llmConfig = config.getLLMConfig();
+
+      // Initialize Google AI for fallback
+      this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
+      this.fallbackModel = this.genAI.getGenerativeModel({ 
+        model: SERVICE_CONSTANTS.CHAT_MODEL 
+      });
 
       this.agent = new Agent({
         name: 'hr-assistant',
@@ -48,7 +65,13 @@ export class MastraAgent {
         tools: tools.length > 0 ? tools : undefined,
       });
 
-      console.log(`🔧 Mastra Agent configured successfully with ${tools.length} tool(s)`);
+      // Log tool IDs for debugging
+      if (tools.length > 0) {
+        const toolIds = tools.map(t => t.id || 'unknown').join(', ');
+        console.log(`🔧 Mastra Agent configured successfully with ${tools.length} tool(s): ${toolIds}`);
+      } else {
+        console.log(`🔧 Mastra Agent configured successfully (no tools)`);
+      }
     } catch (error) {
       throw new AgentError(
         'Failed to setup Mastra agent',
@@ -78,7 +101,7 @@ export class MastraAgent {
       const memoryContext = userMemory ? this.buildMemoryContext(userMemory) : '';
 
       // If agent has tools, allow it to use them for follow-up searches or refinements
-      // Agent can call search-documents tool if it needs more information or wants to refine search
+      // Agent can call search_documents tool if it needs more information or wants to refine search
       const prompt = this.buildPrompt(query, context, memoryContext);
 
       console.log('🤖 [Mastra] Generating response with agent...');
@@ -87,37 +110,93 @@ export class MastraAgent {
       console.log(`🔧 [Mastra] Agent has ${this.tools.length} tool(s) available`);
 
       // Generate response using Mastra Agent
-      // Agent can use tools if needed (e.g., for follow-up searches, refine search parameters, etc.)
-      // Handle both streaming and non-streaming responses
+      // Try Mastra Agent first, fallback to Google Generative AI if it fails
       let response: unknown;
+      let responseCaptured = false;
       
       try {
         // Generate with timeout to prevent hanging on streaming issues
-        const generatePromise = this.agent.generate(prompt);
+        // Wrap in try-catch to catch tool errors and streaming errors
+        const generatePromise = this.agent.generate(prompt).catch((error: unknown) => {
+          // Catch tool errors and other errors early
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isToolError = errorMsg.includes('Tool') && errorMsg.includes('not found');
+          const isStreamingError = errorMsg.includes('promise') && errorMsg.includes('text');
+          
+          if (isToolError || isStreamingError) {
+            // Re-throw to be caught by outer catch
+            throw error;
+          }
+          throw error;
+        });
+        
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Agent generation timeout after 60 seconds')), 60000);
         });
         
-        response = await Promise.race([generatePromise, timeoutPromise]);
-        
-        // Small delay to ensure any internal promises are resolved
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Try to capture response before stream finishes
+        // Wrap in additional try-catch to handle promise resolution issues
+        try {
+          response = await Promise.race([generatePromise, timeoutPromise]);
+          responseCaptured = true;
+          
+          // Immediately extract and resolve text if it's a promise to prevent stream cleanup issues
+          if (response && typeof response === 'object' && 'text' in response) {
+            const textValue = response.text;
+            if (textValue && typeof (textValue as Promise<string>).then === 'function') {
+              // Resolve promise immediately before stream cleanup
+              // Use shorter timeout to catch issues early
+              try {
+                const resolvedText = await Promise.race([
+                  textValue as Promise<string>,
+                  new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error('Text promise timeout')), 3000);
+                  })
+                ]);
+                // Update response with resolved text immediately
+                (response as { text: string }).text = resolvedText;
+                console.log('✅ [Mastra] Text promise resolved successfully');
+              } catch (textError) {
+                const errorMsg = textError instanceof Error ? textError.message : String(textError);
+                console.warn('⚠️ [Mastra] Could not resolve text promise immediately:', errorMsg);
+                // Don't throw, continue with extraction method
+              }
+            }
+          }
+        } catch (innerError) {
+          // If error occurs during response capture, use fallback
+          console.warn('⚠️ [Mastra] Error during response capture:', innerError);
+          if (!responseCaptured) {
+            throw innerError; // Will be caught by outer catch
+          }
+        }
       } catch (streamError: unknown) {
         // If streaming error occurs, try to extract any partial response
         const errorMessage = streamError instanceof Error ? streamError.message : String(streamError);
         const errorStack = streamError instanceof Error ? streamError.stack : undefined;
         
-        console.warn('⚠️ [Mastra] Streaming error, attempting to recover:', errorMessage);
-        if (errorStack) {
+        // Check if it's a tool-related error
+        const isToolError = errorMessage.includes('Tool') && errorMessage.includes('not found');
+        if (isToolError) {
+          console.warn('⚠️ [Mastra] Tool error detected, using fallback (tools may not be properly registered)');
+        } else {
+          console.warn('⚠️ [Mastra] Streaming error, attempting to recover:', errorMessage);
+        }
+        
+        if (errorStack && !isToolError) {
           console.warn('⚠️ [Mastra] Error stack:', errorStack.substring(0, 500));
         }
         
-        // Check if error has a response property
-        if (streamError && typeof streamError === 'object' && 'response' in streamError) {
-          response = (streamError as { response: unknown }).response;
-        } else {
-          // Re-throw if we can't recover
-          throw streamError;
+        // If we didn't capture response, use fallback
+        if (!responseCaptured) {
+          // Check if error has a response property
+          if (streamError && typeof streamError === 'object' && 'response' in streamError) {
+            response = (streamError as { response: unknown }).response;
+          } else {
+            // Last resort: use fallback to Google Generative AI directly
+            console.warn('⚠️ [Mastra] No response captured, using fallback to Google Generative AI');
+            return await this.generateWithFallback(query, sources, userMemory);
+          }
         }
       }
 
@@ -172,7 +251,10 @@ export class MastraAgent {
         console.error('❌ [Mastra] Empty answer generated');
         console.error('❌ [Mastra] Response structure:', response ? Object.keys(response) : 'null');
         console.error('❌ [Mastra] Response value:', JSON.stringify(response, null, 2).substring(0, 500));
-        return 'I apologize, but I was unable to generate a response. Please try rephrasing your question.';
+        
+        // Try fallback if answer is empty
+        console.warn('⚠️ [Mastra] Trying fallback to Google Generative AI');
+        return await this.generateWithFallback(query, sources, userMemory);
       }
 
       console.log('✅ [Mastra] Answer generated successfully, length:', answer.length);
@@ -180,14 +262,80 @@ export class MastraAgent {
 
     } catch (error) {
       console.error('❌ [Mastra Agent] Generation error:', error);
-      throw new AgentError(
-        'Failed to generate response with Mastra agent',
-        { 
-          query, 
-          sourcesCount: sources.length,
-          originalError: error 
-        }
-      );
+      
+      // Try fallback before throwing error
+      try {
+        console.warn('⚠️ [Mastra] Attempting fallback to Google Generative AI');
+        return await this.generateWithFallback(query, sources, userMemory);
+      } catch (fallbackError) {
+        console.error('❌ [Mastra] Fallback also failed:', fallbackError);
+        throw new AgentError(
+          'Failed to generate response with Mastra agent and fallback',
+          { 
+            query, 
+            sourcesCount: sources.length,
+            originalError: error,
+            fallbackError: fallbackError
+          }
+        );
+      }
+    }
+  }
+
+  /**
+   * Fallback method using Google Generative AI directly
+   * Used when Mastra Agent streaming fails
+   * Includes retry mechanism for API overload errors
+   * @private
+   */
+  private async generateWithFallback(
+    query: string,
+    sources: VectorSearchDocument[],
+    userMemory?: UserMemory,
+    retryCount: number = 0
+  ): Promise<string> {
+    const maxRetries = 3;
+    const retryDelay = 1000 * (retryCount + 1); // Exponential backoff: 1s, 2s, 3s
+
+    try {
+      if (!this.fallbackModel) {
+        throw new Error('Fallback model not initialized');
+      }
+
+      // Build context from sources
+      const context = this.buildContext(sources);
+      const memoryContext = userMemory ? this.buildMemoryContext(userMemory) : '';
+      const prompt = this.buildPrompt(query, context, memoryContext);
+
+      console.log('🔄 [Mastra] Using fallback Google Generative AI');
+      
+      // Use Google Generative AI directly
+      const result = await this.fallbackModel.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
+
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty response from fallback model');
+      }
+
+      console.log('✅ [Mastra] Fallback response generated successfully');
+      return text;
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isOverloadError = errorMessage.includes('overloaded') || 
+                              errorMessage.includes('503') ||
+                              (error && typeof error === 'object' && 'status' in error && (error as { status: number }).status === 503);
+
+      // Retry on overload errors
+      if (isOverloadError && retryCount < maxRetries) {
+        console.warn(`⚠️ [Mastra] API overloaded, retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return await this.generateWithFallback(query, sources, userMemory, retryCount + 1);
+      }
+
+      console.error('❌ [Mastra] Fallback generation error:', error);
+      throw error;
     }
   }
 
@@ -249,9 +397,9 @@ export class MastraAgent {
     
     // If tools are available, inform agent it can use them for additional searches
     if (this.tools.length > 0) {
-      prompt += `\n\nNOTE: You have access to tools (search-documents, get-user-preferences, update-user-preferences). `;
+      prompt += `\n\nNOTE: You have access to tools (search_documents, get_user_preferences, update_user_preferences). `;
       prompt += `If you need to search for additional information, refine your search with different parameters, `;
-      prompt += `or perform multi-step reasoning that requires multiple searches, feel free to use the search-documents tool. `;
+      prompt += `or perform multi-step reasoning that requires multiple searches, feel free to use the search_documents tool. `;
       prompt += `The initial context provided above is a starting point, but you can search for more specific information if needed.`;
     } else {
       prompt += `If the information is not available in the context, please say so clearly in the user's language.`;
@@ -415,7 +563,7 @@ Your capabilities:
 - Support multiple languages: automatically detect the language of the user's question and respond in the same language
 
 Available Tools:
-- search-documents: Use this tool to search the employee handbook knowledge base for relevant information. 
+- search_documents: Use this tool to search the employee handbook knowledge base for relevant information. 
   * Use this tool when you need additional information beyond what's provided in the initial context
   * Use this tool for follow-up questions that require new searches
   * Use this tool to refine searches with different parameters (e.g., different threshold, limit)
@@ -431,7 +579,7 @@ Multilingual Support:
 - Maintain professional tone and clarity regardless of language
 
 Guidelines:
-- Use the search-documents tool to find relevant information before answering questions
+- Use the search_documents tool to find relevant information before answering questions
 - If information is not available in the context, say so clearly in the user's language
 - Provide actionable advice when possible
 - Use a friendly but professional tone

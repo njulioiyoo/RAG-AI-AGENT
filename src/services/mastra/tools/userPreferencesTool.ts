@@ -23,7 +23,7 @@ export function createUserPreferencesTool(
   updatePreferencesFn: (userId: string, preferences: Record<string, unknown>) => Promise<void>
 ) {
   return createTool({
-    id: 'get-user-preferences',
+    id: 'get_user_preferences',
     description: `Get user preferences and profile information.
 Use this tool to retrieve user-specific preferences like language, response style, or other customizations.
 This helps you personalize responses based on user preferences.
@@ -33,7 +33,31 @@ Parameters:
     execute: async (context: any): Promise<Record<string, unknown>> => {
       try {
         // Extract parameters from context
-        const params = (context.params || context || {}) as GetUserPreferencesParams;
+        // Mastra passes parameters in different ways - try multiple extraction methods
+        // Based on actual logs, Mastra passes as: { context: { userId: '...' }, runId: '...', ... }
+        let params: GetUserPreferencesParams;
+        
+        // Method 1: context.context (Mastra wraps params in a context property)
+        if (context && typeof context === 'object' && context.context && typeof context.context === 'object' && 'userId' in context.context) {
+          params = context.context as GetUserPreferencesParams;
+        }
+        // Method 2: context.args (Mastra might pass as args)
+        else if (context && typeof context === 'object' && context.args && typeof context.args === 'object' && 'userId' in context.args) {
+          params = context.args as GetUserPreferencesParams;
+        }
+        // Method 3: Direct context
+        else if (context && typeof context === 'object' && 'userId' in context) {
+          params = context as GetUserPreferencesParams;
+        }
+        // Method 4: context.params
+        else if (context && typeof context === 'object' && context.params) {
+          params = context.params as GetUserPreferencesParams;
+        }
+        // Method 5: Fallback
+        else {
+          params = (context || {}) as GetUserPreferencesParams;
+        }
+        
         const { userId } = params;
         
         if (!userId || typeof userId !== 'string') {
@@ -65,7 +89,7 @@ export function createUpdateUserPreferencesTool(
   updatePreferencesFn: (userId: string, preferences: Record<string, unknown>) => Promise<void>
 ) {
   return createTool({
-    id: 'update-user-preferences',
+    id: 'update_user_preferences',
     description: `Update user preferences and profile information.
 Use this tool when the user explicitly requests to change their preferences, such as language, response style, or notification settings.
 Only update preferences when the user explicitly asks for it.
@@ -76,7 +100,31 @@ Parameters:
     execute: async (context: any): Promise<{ success: boolean; message: string }> => {
       try {
         // Extract parameters from context
-        const params = (context.params || context || {}) as UpdateUserPreferencesParams;
+        // Mastra passes parameters in different ways - try multiple extraction methods
+        // Based on actual logs, Mastra passes as: { context: { userId: '...', preferences: {...} }, runId: '...', ... }
+        let params: UpdateUserPreferencesParams;
+        
+        // Method 1: context.context (Mastra wraps params in a context property)
+        if (context && typeof context === 'object' && context.context && typeof context.context === 'object' && 'userId' in context.context && 'preferences' in context.context) {
+          params = context.context as UpdateUserPreferencesParams;
+        }
+        // Method 2: context.args (Mastra might pass as args)
+        else if (context && typeof context === 'object' && context.args && typeof context.args === 'object' && 'userId' in context.args && 'preferences' in context.args) {
+          params = context.args as UpdateUserPreferencesParams;
+        }
+        // Method 3: Direct context
+        else if (context && typeof context === 'object' && 'userId' in context && 'preferences' in context) {
+          params = context as UpdateUserPreferencesParams;
+        }
+        // Method 4: context.params
+        else if (context && typeof context === 'object' && context.params) {
+          params = context.params as UpdateUserPreferencesParams;
+        }
+        // Method 5: Fallback
+        else {
+          params = (context || {}) as UpdateUserPreferencesParams;
+        }
+        
         const { userId, preferences } = params;
         
         if (!userId || typeof userId !== 'string') {
