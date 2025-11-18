@@ -1,17 +1,17 @@
 {
 	"info": {
 		"_postman_id": "87654321-4321-4321-4321-876543210987",
-		"name": "Employee Handbook RAG - HR Assistant",
-		"description": "RAG AI Agent specifically for Employee Handbook queries and HR assistance",
+		"name": "Mastra RAG AI Agent - Employee Handbook with Ingestion Pipeline",
+		"description": "Complete Mastra-powered RAG AI Agent with advanced markdown ingestion pipeline. Features automatic document parsing, intelligent chunking, embedding generation, and vector storage. All endpoints use Mastra framework for enhanced performance and capabilities.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "87654321"
 	},
 	"item": [
 		{
-			"name": "System Health",
+			"name": "System Health & Stats",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Mastra Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -20,10 +20,11 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "health"]
 						}
-					}
+					},
+					"response": []
 				},
 				{
-					"name": "Knowledge Base Stats",
+					"name": "Mastra Knowledge Base Stats",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -32,15 +33,29 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "stats"]
 						}
-					}
+					},
+					"response": []
+				},
+				{
+					"name": "API Documentation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/docs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "docs"]
+						}
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "Employee Handbook Management",
+			"name": "Mastra Document Management",
 			"item": [
 				{
-					"name": "Upload Employee Handbook",
+					"name": "Add HR Policy Document (Mastra)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -51,43 +66,45 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"filePath\": \"/app/uploads/employee-handbook.md\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/ingest/file",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "ingest", "file"]
-						}
-					}
-				},
-				{
-					"name": "Add HR Policy Document",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Remote Work Policy\",\n  \"content\": \"# Remote Work Policy\\n\\n## Eligibility\\n- Minimum 6 months employment\\n- Manager approval required\\n- Maximum 3 days per week\\n\\n## Requirements\\n- Company laptop mandatory\\n- VPN connection required\\n- Standard working hours: 09:00-17:00\\n\\n## Communication\\n- Daily check-in with team\\n- Weekly one-on-one with manager\\n- Participate in all scheduled meetings\",\n  \"metadata\": {\n    \"category\": \"HR Policy\",\n    \"type\": \"remote_work\",\n    \"department\": \"Human Resources\",\n    \"effective_date\": \"2025-01-01\"\n  }\n}"
+							"raw": "{\n  \"title\": \"Remote Work Policy 2025\",\n  \"content\": \"# Remote Work Policy\\n\\n## Eligibility\\n- Minimum 6 months employment\\n- Manager approval required\\n- Maximum 3 days per week remote\\n\\n## Requirements\\n- Company laptop mandatory\\n- VPN connection required\\n- Standard working hours: 09:00-17:00 WIB\\n- Home office setup approval\\n\\n## Communication Standards\\n- Daily check-in with team via Slack\\n- Weekly one-on-one with direct manager\\n- Mandatory attendance in all scheduled meetings\\n- Response time: within 2 hours during business hours\\n\\n## Performance Monitoring\\n- Weekly deliverables tracking\\n- Monthly productivity assessment\\n- Quarterly remote work evaluation\\n\\n## Equipment & Security\\n- Company-issued laptop with VPN\\n- Secure Wi-Fi connection required\\n- No public Wi-Fi for sensitive work\\n- Regular security updates mandatory\",\n  \"metadata\": {\n    \"category\": \"HR Policy\",\n    \"type\": \"remote_work\",\n    \"department\": \"Human Resources\",\n    \"effective_date\": \"2025-01-01\",\n    \"last_updated\": \"2025-11-18\",\n    \"framework\": \"mastra\"\n  }\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/documents",
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "documents"]
 						}
-					}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Leave Policy Document (Mastra)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Annual Leave & Time Off Policy\",\n  \"content\": \"# Annual Leave & Time Off Policy\\n\\n## Annual Leave Entitlement\\n- Years 1-2: 12 days per year\\n- Years 3-5: 15 days per year\\n- Years 5+: 18 days per year\\n- Maximum carryover: 5 days to next year\\n\\n## Sick Leave\\n- Unlimited sick days with medical certificate\\n- First 3 days: no certificate required\\n- Chronic illness: special arrangement available\\n\\n## Public Holidays\\n- All national public holidays observed\\n- Religious holidays: 2 additional days per year\\n- Substitute holidays when falling on weekends\\n\\n## Emergency Leave\\n- Family emergency: up to 3 days\\n- Bereavement: up to 5 days\\n- Maternity/Paternity: as per labor law\\n\\n## Application Process\\n- Minimum 2 weeks advance notice for annual leave\\n- Manager approval required\\n- HR notification within 24 hours\\n- Emergency leave: notify immediately\",\n  \"metadata\": {\n    \"category\": \"HR Policy\",\n    \"type\": \"leave_policy\",\n    \"department\": \"Human Resources\",\n    \"effective_date\": \"2024-01-01\",\n    \"framework\": \"mastra\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/documents",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "documents"]
+						}
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "HR Assistant Chat",
+			"name": "Markdown Ingestion Pipeline",
 			"item": [
 				{
-					"name": "Leave Policies",
+					"name": "Ingest Markdown Content (Auto Chunking)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -98,17 +115,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-leave-{{$timestamp}}\",\n  \"message\": \"How many annual leave days am I entitled to?\"\n}"
+							"raw": "{\n  \"content\": \"# Employee Handbook - Company Policies\\n\\n## 1. Pengenalan\\nDokumen ini menguraikan kebijakan dan prosedur utama yang berlaku untuk semua karyawan. Tujuannya adalah untuk menciptakan lingkungan kerja yang adil, produktif, dan harmonis. Kebijakan ini dapat berubah, dan setiap perubahan akan dikomunikasikan secara resmi.\\n\\n## 2. Jam Kerja dan Kehadiran\\n* **Jam Kerja Standar**: Senin hingga Jumat, pukul 09:00 - 17:00, dengan satu jam istirahat makan siang (pukul 12:00 - 13:00).\\n* **Kehadiran**: Semua karyawan diharapkan hadir tepat waktu. Keterlambatan harus dilaporkan kepada manajer langsung.\\n* **Lembur**: Jam kerja lembur harus disetujui sebelumnya oleh manajer. Kompensasi lembur akan dihitung sesuai dengan peraturan perundang-undangan yang berlaku.\\n\\n## 3. Cuti dan Absensi\\n* **Cuti Tahunan**: Karyawan berhak atas 12 hari cuti tahunan berbayar per tahun. Masa percobaan 3 bulan tidak dihitung. Permintaan cuti harus diajukan melalui sistem **HRIS** minimal 7 hari kerja sebelumnya. Cuti yang tidak digunakan tidak dapat diakumulasikan ke tahun berikutnya.\\n* **Cuti Sakit**: Karyawan berhak atas 5 hari cuti sakit berbayar per tahun tanpa perlu surat dokter. Untuk cuti sakit lebih dari 2 hari berturut-turut, surat keterangan dokter wajib dilampirkan.\\n* **Cuti Hamil dan Melahirkan**: Sesuai dengan peraturan pemerintah, karyawati berhak atas 3 bulan cuti melahirkan berbayar.\\n* **Cuti Khusus**: Cuti khusus untuk acara keluarga penting (misalnya, pernikahan, duka cita) akan dipertimbangkan secara kasus per kasus oleh manajemen.\",\n  \"filename\": \"employee-handbook.md\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/chat",
+							"raw": "{{baseUrl}}/api/documents/ingest-markdown",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
+							"path": ["api", "documents", "ingest-markdown"]
 						}
-					}
+					},
+					"response": []
 				},
 				{
-					"name": "Sick Leave Information",
+					"name": "Ingest Complete Employee Handbook",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -119,17 +137,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-sick-{{$timestamp}}\",\n  \"message\": \"What is the sick leave policy and do I need a doctor's note?\"\n}"
+							"raw": "{\n  \"content\": \"# Employee Handbook - Company Policies\\n\\n## 1. Pengenalan\\nDokumen ini menguraikan kebijakan dan prosedur utama yang berlaku untuk semua karyawan. Tujuannya adalah untuk menciptakan lingkungan kerja yang adil, produktif, dan harmonis. Kebijakan ini dapat berubah, dan setiap perubahan akan dikomunikasikan secara resmi.\\n\\n## 2. Jam Kerja dan Kehadiran\\n* **Jam Kerja Standar**: Senin hingga Jumat, pukul 09:00 - 17:00, dengan satu jam istirahat makan siang (pukul 12:00 - 13:00).\\n* **Kehadiran**: Semua karyawan diharapkan hadir tepat waktu. Keterlambatan harus dilaporkan kepada manajer langsung.\\n* **Lembur**: Jam kerja lembur harus disetujui sebelumnya oleh manajer. Kompensasi lembur akan dihitung sesuai dengan peraturan perundang-undangan yang berlaku.\\n\\n## 3. Cuti dan Absensi\\n* **Cuti Tahunan**: Karyawan berhak atas 12 hari cuti tahunan berbayar per tahun. Masa percobaan 3 bulan tidak dihitung. Permintaan cuti harus diajukan melalui sistem **HRIS** minimal 7 hari kerja sebelumnya. Cuti yang tidak digunakan tidak dapat diakumulasikan ke tahun berikutnya.\\n* **Cuti Sakit**: Karyawan berhak atas 5 hari cuti sakit berbayar per tahun tanpa perlu surat dokter. Untuk cuti sakit lebih dari 2 hari berturut-turut, surat keterangan dokter wajib dilampirkan.\\n* **Cuti Hamil dan Melahirkan**: Sesuai dengan peraturan pemerintah, karyawati berhak atas 3 bulan cuti melahirkan berbayar.\\n* **Cuti Khusus**: Cuti khusus untuk acara keluarga penting (misalnya, pernikahan, duka cita) akan dipertimbangkan secara kasus per kasus oleh manajemen.\\n\\n## 4. Gaji dan Kompensasi\\n* **Gaji Pokok**: Gaji dibayarkan setiap tanggal 25 setiap bulan. Jika tanggal 25 jatuh pada hari libur, pembayaran akan dilakukan pada hari kerja sebelumnya.\\n* **Bonus dan Insentif**: Bonus kinerja tahunan akan diberikan berdasarkan evaluasi kinerja individu dan pencapaian target perusahaan.\\n* **Manfaat Tambahan**:\\n    * **Asuransi Kesehatan**: Perusahaan menyediakan asuransi kesehatan untuk karyawan dan satu anggota keluarga.\\n    * **Tunjangan Transportasi**: Tunjangan transportasi bulanan diberikan untuk membantu biaya perjalanan ke dan dari kantor.\\n\\n## 5. Kode Etik dan Perilaku\\n* **Profesionalisme**: Karyawan harus menjaga sikap profesional di tempat kerja dan dalam interaksi dengan klien.\\n* **Pakaian**: Pakaian kerja bersifat *smart-casual*. Pakaian yang rapi dan sopan diharapkan.\\n* **Penggunaan Aset Perusahaan**: Komputer, software, dan aset lain harus digunakan secara eksklusif untuk kepentingan perusahaan.\\n* **Kerahasiaan Data**: Semua informasi perusahaan, termasuk data klien dan strategi bisnis, harus dijaga kerahasiaannya. Pelanggaran dapat mengakibatkan sanksi berat, termasuk pemutusan hubungan kerja.\\n\\n## 6. Pengembangan Karyawan\\n* **Pelatihan dan Sertifikasi**: Perusahaan mendorong karyawan untuk terus meningkatkan keterampilan mereka. Dana untuk pelatihan dan sertifikasi terkait pekerjaan dapat diajukan kepada manajemen.\\n* **Evaluasi Kinerja**: Evaluasi kinerja akan dilakukan setiap 6 bulan untuk memberikan umpan balik, menetapkan tujuan, dan mengidentifikasi area pengembangan.\\n\\n## 7. Prosedur Keluar\\n* **Pengunduran Diri**: Karyawan yang ingin mengundurkan diri harus mengajukan surat pengunduran diri secara tertulis kepada manajer dan HRD dengan pemberitahuan minimal 30 hari kalender.\\n* **Dokumen Keluar**: Sebelum hari terakhir, karyawan harus mengembalikan semua aset perusahaan dan menyelesaikan semua tugas yang tertunda.\\n\\n## 8. Keamanan Data dan Privasi\\n* **Akses Data**: Akses ke data sensitif karyawan dan perusahaan dibatasi hanya untuk personel yang berwenang.\\n* **Penggunaan Email Perusahaan**: Email perusahaan hanya boleh digunakan untuk keperluan bisnis yang sah. Pengiriman konten yang tidak pantas atau ilegal dilarang keras.\\n* **Keamanan Perangkat**: Karyawan bertanggung jawab untuk mengamankan perangkat perusahaan (laptop, ponsel) dari akses yang tidak sah. Penggunaan kata sandi yang kuat dan otentikasi dua faktor sangat dianjurkan.\\n\\n## 9. Kesehatan dan Keselamatan Kerja (K3)\\n* **Lingkungan Kerja Aman**: Perusahaan berkomitmen untuk menyediakan lingkungan kerja yang aman dan sehat.\\n* **Pelaporan Insiden K3**: Setiap insiden atau kondisi tidak aman harus segera dilaporkan kepada departemen K3 atau manajer langsung.\\n* **Prosedur Darurat**: Karyawan harus mengetahui lokasi pintu keluar darurat, alat pemadam api, dan prosedur evakuasi. Latihan evakuasi akan diadakan secara berkala.\\n\\n## 10. Fasilitas Kantor\\n* **Ruang Makan**: Tersedia ruang makan yang dilengkapi dengan fasilitas microwave dan kulkas. Diharapkan menjaga kebersihan setelah digunakan.\\n* **Perpustakaan Mini**: Perusahaan menyediakan koleksi buku dan majalah terkait industri. Peminjaman dapat dilakukan melalui sistem perpustakaan.\\n* **Area Istirahat**: Terdapat area istirahat yang nyaman untuk karyawan bersantai selama jam istirahat.\\n\\n## 11. Kebijakan Penggunaan Internet dan Media Sosial\\n* **Penggunaan Internet**: Penggunaan internet di lingkungan kerja harus profesional. Akses ke situs web yang tidak pantas, ilegal, atau mengganggu produktivitas sangat dilarang.\\n* **Media Sosial**: Karyawan harus berhati-hati saat memposting konten terkait pekerjaan di media sosial pribadi. Hindari mengungkapkan informasi rahasia perusahaan atau membuat pernyataan yang dapat merusak reputasi perusahaan.\\n\\n## 12. Perlindungan Data Pribadi Karyawan\\n* **Pengumpulan Data**: Data pribadi karyawan hanya dikumpulkan untuk tujuan yang sah terkait pekerjaan.\\n* **Penyimpanan Data**: Data pribadi disimpan secara aman dan hanya dapat diakses oleh pihak yang berkepentingan.\\n* **Hak Karyawan**: Karyawan memiliki hak untuk mengakses dan meminta koreksi data pribadi mereka.\",\n  \"filename\": \"complete-employee-handbook.md\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/chat",
+							"raw": "{{baseUrl}}/api/documents/ingest-markdown",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
+							"path": ["api", "documents", "ingest-markdown"]
 						}
-					}
+					},
+					"response": []
 				},
 				{
-					"name": "Working Hours & Schedule",
+					"name": "Ingest File from Server (File Path)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -140,17 +159,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-hours-{{$timestamp}}\",\n  \"message\": \"What are the standard working hours and lunch break schedule?\"\n}"
+							"raw": "{\n  \"filePath\": \"/app/sample-docs/employee-handbook.md\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/chat",
+							"raw": "{{baseUrl}}/api/documents/ingest-file",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
+							"path": ["api", "documents", "ingest-file"]
 						}
-					}
+					},
+					"response": []
 				},
 				{
-					"name": "Salary & Payment",
+					"name": "Ingest Custom Policy Document",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -161,141 +181,25 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-salary-{{$timestamp}}\",\n  \"message\": \"When is salary paid each month and what happens if payday falls on a holiday?\"\n}"
+							"raw": "{\n  \"content\": \"# COVID-19 Workplace Safety Protocol\\n\\n## Health Screening\\n* Daily temperature check required\\n* Health declaration form mandatory\\n* Symptoms reporting to HR immediately\\n\\n## Work Arrangements\\n* Maximum 50% office capacity\\n* Rotating work from home schedule\\n* Staggered lunch breaks (11:30-13:30)\\n* Flexible start times (08:00-10:00)\\n\\n## Safety Measures\\n* Face masks mandatory in common areas\\n* Hand sanitizer available at all entrances\\n* Social distancing of 2 meters in meetings\\n* Regular disinfection of workstations\\n\\n## Meeting Guidelines\\n* Virtual meetings preferred for >5 people\\n* Meeting rooms limited to 50% capacity\\n* Windows kept open for ventilation\\n* Meeting duration limited to 1 hour max\\n\\n## Travel Policy\\n* International travel requires 14-day quarantine\\n* Domestic travel notification to HR required\\n* Business travel approval from department head\\n\\n## Emergency Procedures\\n* Suspected case: immediate isolation and testing\\n* Contact tracing protocol activation\\n* Deep cleaning and temporary office closure if needed\\n* Communication to all staff within 2 hours\",\n  \"filename\": \"covid-19-safety-protocol.md\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/chat",
+							"raw": "{{baseUrl}}/api/documents/ingest-markdown",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
+							"path": ["api", "documents", "ingest-markdown"]
 						}
-					}
-				},
-				{
-					"name": "Resignation Process",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-resignation-{{$timestamp}}\",\n  \"message\": \"What is the notice period required for resignation and what documents do I need to return?\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/chat",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
-						}
-					}
-				},
-				{
-					"name": "Benefits & Allowances",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-benefits-{{$timestamp}}\",\n  \"message\": \"What health insurance and transportation benefits are provided by the company?\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/chat",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
-						}
-					}
-				},
-				{
-					"name": "Performance & Training",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-training-{{$timestamp}}\",\n  \"message\": \"How often are performance evaluations conducted and can I request training budget?\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/chat",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
-						}
-					}
-				},
-				{
-					"name": "Office Facilities",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-facilities-{{$timestamp}}\",\n  \"message\": \"What office facilities are available? Tell me about the cafeteria, library, and rest areas.\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/chat",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
-						}
-					}
-				},
-				{
-					"name": "IT & Security Policies",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"hr-security-{{$timestamp}}\",\n  \"message\": \"What are the guidelines for using company devices and social media policies?\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/chat",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "chat"]
-						}
-					}
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "Employee Memory Management",
+			"name": "Mastra RAG Queries",
 			"item": [
 				{
-					"name": "Get Employee Profile",
+					"name": "Simple Query - Leave Policies",
 					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/users/{{employeeId}}/memory",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{employeeId}}", "memory"]
-						}
-					}
-				},
-				{
-					"name": "Update Employee Profile",
-					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -304,28 +208,295 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"profileData\": {\n    \"name\": \"Jane Doe\",\n    \"department\": \"Human Resources\",\n    \"role\": \"HR Specialist\",\n    \"employee_id\": \"HR-001\",\n    \"start_date\": \"2024-03-15\",\n    \"manager\": \"John Smith\"\n  },\n  \"preferences\": {\n    \"language\": \"Indonesian\",\n    \"response_style\": \"detailed\",\n    \"notification_frequency\": \"weekly\",\n    \"preferred_topics\": [\"hr_policies\", \"benefits\", \"leave_management\"]\n  }\n}"
+							"raw": "{\n  \"query\": \"How many annual leave days am I entitled to?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{employeeId}}/memory",
+							"raw": "{{baseUrl}}/api/query",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{employeeId}}", "memory"]
+							"path": ["api", "query"]
 						}
-					}
+					},
+					"response": []
+				},
+				{
+					"name": "Complex Query - Remote Work",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"What are the requirements and approval process for working from home?\",\n  \"limit\": 3,\n  \"threshold\": 0.4\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "query"]
+						}
+					},
+					"response": []
 				}
 			]
+		},
+		{
+			"name": "Mastra Conversational Chat",
+			"item": [
+				{
+					"name": "Chat - Leave Policies Discussion",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"leave-discussion-{{$timestamp}}\",\n  \"message\": \"I've been working here for 3 years. How many annual leave days do I get and can I carry some to next year?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Follow-up Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"leave-discussion-{{$timestamp}}\",\n  \"message\": \"What happens if I get sick during my annual leave?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Sick Leave Information",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"sick-leave-{{$timestamp}}\",\n  \"message\": \"I'm feeling unwell today. Do I need a doctor's note for sick leave and how do I notify HR?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Remote Work Setup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"remote-work-{{$timestamp}}\",\n  \"message\": \"I want to work from home 2 days a week. What's the approval process and what equipment will I need?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Salary & Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"salary-inquiry-{{$timestamp}}\",\n  \"message\": \"When is salary paid each month and what benefits am I entitled to?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Performance & Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"training-request-{{$timestamp}}\",\n  \"message\": \"I want to attend a professional development course. Does the company provide training budget and how do I apply?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chat - Office Facilities & IT",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"facilities-it-{{$timestamp}}\",\n  \"message\": \"What office facilities are available and what are the IT security guidelines I need to follow?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Test Examples",
+			"item": [
+				{
+					"name": "Test - High Similarity Threshold",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"vacation days\",\n  \"limit\": 3,\n  \"threshold\": 0.8\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "query"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Memory Persistence",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"test-user-001\",\n  \"sessionId\": \"memory-test-session\",\n  \"message\": \"I asked about leave policies earlier. Can you remind me what we discussed?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Complex Multi-part Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{employeeId}}\",\n  \"sessionId\": \"complex-query-{{$timestamp}}\",\n  \"message\": \"I'm a 4-year employee planning to work remotely while taking some annual leave next month. Can you explain the policies that apply to my situation and what approvals I need?\",\n  \"limit\": 8,\n  \"threshold\": 0.25\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "chat"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-generate timestamp for session IDs",
+					"pm.globals.set('timestamp', Date.now());"
+				]
+			}
 		}
 	],
 	"variable": [
 		{
 			"key": "baseUrl",
 			"value": "http://localhost:3001",
-			"type": "string"
+			"type": "string",
+			"description": "Base URL for Mastra RAG AI Agent"
 		},
 		{
 			"key": "employeeId",
 			"value": "emp-001",
-			"type": "string"
+			"type": "string",
+			"description": "Test employee ID for demo purposes"
 		}
 	]
 }

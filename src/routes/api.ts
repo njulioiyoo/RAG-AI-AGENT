@@ -1,41 +1,86 @@
 import { Router } from 'express';
-import { RAGController } from '../controllers/ragController';
+import { RAGController } from '../controllers/ragController.js';
 
 const router = Router();
 const ragController = new RAGController();
 
+// Store initialization promise to check status
+let initializationPromise: Promise<void> | null = null;
+let isInitialized = false;
+
 // Initialize the RAG agent
-ragController.initialize().catch(console.error);
+const initializeController = async () => {
+  try {
+    await ragController.initialize();
+    isInitialized = true;
+    console.log('✅ Mastra RAG Controller fully initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize Mastra RAG Controller:', error);
+    throw error;
+  }
+};
+
+initializationPromise = initializeController();
+
+// Middleware to ensure controller is initialized
+const ensureInitialized = async (req: any, res: any, next: any) => {
+  if (!isInitialized && initializationPromise) {
+    try {
+      await initializationPromise;
+    } catch (error) {
+      return res.status(503).json({
+        error: 'Service unavailable',
+        message: 'RAG service is still initializing or failed to initialize'
+      });
+    }
+  }
+  next();
+};
 
 // Health check endpoint
-router.get('/health', (req, res) => ragController.health(req, res));
+router.get('/health', (req, res) => {
+  ragController.health(req, res);
+});
+
+// Apply initialization middleware to all endpoints that need it
+router.use('/stats', ensureInitialized);
+router.use('/query', ensureInitialized);
+router.use('/chat', ensureInitialized);
+router.use('/documents', ensureInitialized);
 
 // Get knowledge base statistics
-router.get('/stats', (req, res) => ragController.getStats(req, res));
+router.get('/stats', (req, res) => {
+  ragController.getStats(req, res);
+});
 
-// Query the RAG system
-router.post('/query', (req, res) => ragController.query(req, res));
+// Core Mastra-powered endpoints
+router.post('/query', (req, res) => {
+  ragController.query(req, res);
+});
 
-// Add a new document to the knowledge base
-router.post('/documents', (req, res) => ragController.addDocument(req, res));
+router.post('/chat', (req, res) => {
+  ragController.chat(req, res);
+});
 
-// Chat endpoint with memory
-router.post('/chat', (req, res) => ragController.chat(req, res));
+router.post('/documents', (req, res) => {
+  ragController.addDocument(req, res);
+});
 
-// Document ingestion endpoints
-router.post('/ingest/markdown', (req, res) => ragController.ingestMarkdown(req, res));
-router.post('/ingest/file', (req, res) => ragController.ingestFile(req, res));
+// Markdown ingestion endpoints
+router.post('/documents/ingest-markdown', (req, res) => {
+  ragController.ingestMarkdown(req, res);
+});
 
-// User memory management
-router.get('/users/:userId/memory', (req, res) => ragController.getUserMemory(req, res));
-router.put('/users/:userId/memory', (req, res) => ragController.updateUserMemory(req, res));
+router.post('/documents/ingest-file', (req, res) => {
+  ragController.ingestMarkdownFile(req, res);
+});
 
 // API documentation endpoint
 router.get('/docs', (req, res) => {
   res.json({
-    name: 'RAG AI Agent API',
-    version: '1.0.0',
-    description: 'Retrieval-Augmented Generation AI Agent using Mastra framework',
+    name: 'Mastra RAG AI Agent API',
+    version: '2.0.0',
+    description: 'Retrieval-Augmented Generation AI Agent powered by Mastra framework',
     endpoints: [
       {
         path: '/api/health',
@@ -50,7 +95,7 @@ router.get('/docs', (req, res) => {
       {
         path: '/api/query',
         method: 'POST',
-        description: 'Query the RAG system',
+        description: 'Query the Mastra-powered RAG system',
         body: {
           query: 'string (required) - The question to ask',
           limit: 'number (optional) - Max number of relevant documents to retrieve (default: 5)',
@@ -60,7 +105,7 @@ router.get('/docs', (req, res) => {
       {
         path: '/api/documents',
         method: 'POST',
-        description: 'Add a new document to the knowledge base',
+        description: 'Add a new document to the knowledge base using Mastra',
         body: {
           title: 'string (required) - Document title',
           content: 'string (required) - Document content',
@@ -70,7 +115,7 @@ router.get('/docs', (req, res) => {
       {
         path: '/api/chat',
         method: 'POST',
-        description: 'Chat with the AI agent (with memory)',
+        description: 'Chat with Mastra-powered AI agent (with memory and context)',
         body: {
           userId: 'string (required) - User identifier',
           sessionId: 'string (required) - Session identifier',
@@ -80,34 +125,20 @@ router.get('/docs', (req, res) => {
         }
       },
       {
-        path: '/api/ingest/markdown',
+        path: '/api/documents/ingest-markdown',
         method: 'POST',
-        description: 'Ingest markdown content with automatic chunking',
+        description: 'Ingest markdown content with automatic chunking and embedding pipeline',
         body: {
-          content: 'string (required) - Markdown content',
-          filename: 'string (optional) - File name for metadata'
+          content: 'string (required) - Markdown content to ingest',
+          filename: 'string (optional) - Original filename for metadata'
         }
       },
       {
-        path: '/api/ingest/file',
+        path: '/api/documents/ingest-file',
         method: 'POST',
-        description: 'Ingest markdown file from path',
+        description: 'Ingest markdown file from server filesystem with automatic processing',
         body: {
-          filePath: 'string (required) - Path to markdown file'
-        }
-      },
-      {
-        path: '/api/users/:userId/memory',
-        method: 'GET',
-        description: 'Get user memory and preferences'
-      },
-      {
-        path: '/api/users/:userId/memory',
-        method: 'PUT',
-        description: 'Update user memory and preferences',
-        body: {
-          profileData: 'object (optional) - User profile data',
-          preferences: 'object (optional) - User preferences'
+          filePath: 'string (required) - Path to markdown file on server'
         }
       }
     ]

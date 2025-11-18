@@ -13,6 +13,8 @@ export interface VectorSearchResult {
   similarity: number;
 }
 
+export interface SearchResult extends VectorSearchResult {} // Alias for compatibility
+
 export interface RAGQuery {
   query: string;
   limit?: number;
@@ -24,4 +26,5 @@ export interface RAGResponse {
   sources: VectorSearchResult[];
   query: string;
   timestamp: Date;
+  agentExecutionId?: string; // Mastra execution ID
 }

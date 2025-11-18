@@ -3,7 +3,7 @@
  * Provides comprehensive validation for API inputs and data
  */
 
-import { ValidationError } from './errors';
+import { ValidationError } from './errors.js';
 
 export interface ValidationRule {
   field: string;

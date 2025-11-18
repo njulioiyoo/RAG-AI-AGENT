@@ -1,49 +1,102 @@
 import { Request, Response } from 'express';
-import { RAGAgent } from '../services/ragAgent';
-import { Validator } from '../utils/validation';
-import { ErrorHandler } from '../utils/errors';
+import { Validator } from '../utils/validation.js';
+import { ErrorHandler } from '../utils/errors.js';
+import { MarkdownIngestionService } from '../services/ingestion/markdownIngestion.js';
 
+// Dynamic import for Mastra to avoid ES module issues
+let MastraRAGService: any = null;
+
+async function loadMastraService() {
+  try {
+    const module = await import('../services/mastra/mastraRAGService.js');
+    MastraRAGService = module.MastraRAGService;
+  } catch (error) {
+    console.error('❌ Failed to load Mastra service:', error);
+    throw error;
+  }
+}
+
+/**
+ * Controller for RAG operations powered by Mastra framework
+ * 
+ * Handles HTTP requests and delegates business logic to MastraRAGService
+ * Provides proper error handling and response formatting
+ */
 export class RAGController {
-  private ragAgent: RAGAgent;
+  private mastraService: any = null;
+  private ingestionService: MarkdownIngestionService | null = null;
+  private isInitialized = false;
 
   constructor() {
-    this.ragAgent = new RAGAgent();
+    // Services will be initialized in initialize()
   }
 
-  async initialize() {
+  /**
+   * Initialize the controller and underlying Mastra service
+   * Must be called before handling any requests
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
     try {
-      console.log('🚀 Initializing RAG Controller...');
-      await this.ragAgent.initializeKnowledgeBase();
-      console.log('✅ RAG Controller initialized successfully');
+      console.log('🚀 Initializing Mastra RAG Controller...');
+      
+      // Load Mastra service dynamically
+      await loadMastraService();
+      this.mastraService = new MastraRAGService();
+      await this.mastraService.initialize();
+      
+      // Initialize ingestion service
+      this.ingestionService = new MarkdownIngestionService();
+      
+      this.isInitialized = true;
+      console.log('✅ Mastra RAG Controller initialized successfully');
     } catch (error) {
-      ErrorHandler.logError(error, { context: 'rag_controller_initialization' });
+      ErrorHandler.logError(error, { context: 'mastra_controller_initialization' });
       throw error;
     }
   }
 
-  async query(req: Request, res: Response) {
+  /**
+   * Ensure controller is initialized before processing requests
+   * @private
+   */
+  private ensureInitialized(): void {
+    if (!this.isInitialized) {
+      throw new Error('Controller not initialized. Call initialize() first.');
+    }
+  }
+
+  /**
+   * Handle RAG query requests
+   * Performs semantic search and generates AI responses
+   */
+  async query(req: Request, res: Response): Promise<void> {
     const startTime = Date.now();
     
     try {
+      this.ensureInitialized();
+      
       // Validate input
       Validator.validateQueryRequest(req.body);
       
       const { query, limit, threshold } = req.body;
 
-      const response = await this.ragAgent.query({
-        query,
+      const response = await this.mastraService.query(query, {
         limit: limit || 5,
         threshold: threshold || 0.3
       });
 
       const duration = Date.now() - startTime;
-      console.log(`✅ Query processed in ${duration}ms`);
+      console.log(`✅ Mastra query processed in ${duration}ms`);
       
       res.json(response);
     } catch (error) {
       const duration = Date.now() - startTime;
       ErrorHandler.logError(error, { 
-        context: 'query_endpoint',
+        context: 'mastra_query_endpoint',
         duration,
         query: req.body?.query?.substring(0, 50)
       });
@@ -57,25 +110,33 @@ export class RAGController {
     }
   }
 
-  async addDocument(req: Request, res: Response) {
+  /**
+   * Add document to knowledge base
+   * Processes and stores documents with vector embeddings
+   */
+  async addDocument(req: Request, res: Response): Promise<void> {
     try {
+      this.ensureInitialized();
+      
       const { title, content, metadata } = req.body;
 
       if (!title || !content) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Title and content are required'
         });
+        return;
       }
 
-      const documentId = await this.ragAgent.addDocument(title, content, metadata);
+      const result = await this.mastraService.addDocument(title, content, metadata);
 
       res.status(201).json({
-        message: 'Document added successfully',
-        documentId,
-        title
+        message: 'Document added successfully via Mastra',
+        documentId: result.documentId,
+        title,
+        framework: result.framework
       });
     } catch (error) {
-      console.error('❌ Error adding document:', error);
+      console.error('❌ Error adding document via Mastra:', error);
       res.status(500).json({
         error: 'Failed to add document',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -83,12 +144,17 @@ export class RAGController {
     }
   }
 
-  async getStats(req: Request, res: Response) {
+  /**
+   * Get service statistics and health information
+   */
+  async getStats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await this.ragAgent.getStats();
+      this.ensureInitialized();
+      
+      const stats = await this.mastraService.getStats();
       res.json(stats);
     } catch (error) {
-      console.error('❌ Error getting stats:', error);
+      console.error('❌ Error getting Mastra stats:', error);
       res.status(500).json({
         error: 'Failed to get stats',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -96,35 +162,59 @@ export class RAGController {
     }
   }
 
-  async health(req: Request, res: Response) {
+  /**
+   * Health check endpoint
+   * Returns service status and configuration information
+   */
+  async health(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await this.ragAgent.getStats();
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        service: 'RAG AI Agent',
-        version: '1.0.0',
-        database: 'connected',
-        knowledgeBase: {
-          documentsCount: stats.totalDocuments,
-          categories: stats.categories
-        }
-      });
+      // Health check should work even if not fully initialized
+      if (this.isInitialized) {
+        const stats = await this.mastraService.getStats();
+        res.json({
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          service: 'Mastra RAG AI Agent',
+          version: '2.0.0',
+          framework: stats.framework,
+          database: 'connected',
+          agent: stats.agent,
+          tools: stats.tools,
+          initialized: true
+        });
+      } else {
+        res.json({
+          status: 'initializing',
+          timestamp: new Date().toISOString(),
+          service: 'Mastra RAG AI Agent',
+          version: '2.0.0',
+          framework: 'mastra',
+          database: 'unknown',
+          initialized: false,
+          message: 'Service is still initializing'
+        });
+      }
     } catch (error) {
-      console.error('❌ Health check error:', error);
+      console.error('❌ Mastra health check error:', error);
       res.status(503).json({
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        initialized: false
       });
     }
   }
 
-  // Chat endpoint with user memory
-  async chat(req: Request, res: Response) {
+  /**
+   * Handle conversational chat requests with memory
+   * Maintains conversation context and user preferences
+   */
+  async chat(req: Request, res: Response): Promise<void> {
     const startTime = Date.now();
     
     try {
+      this.ensureInitialized();
+      
       // Validate input
       Validator.validateChatRequest(req.body);
       
@@ -133,7 +223,7 @@ export class RAGController {
       // Sanitize inputs
       const sanitizedMessage = Validator.sanitizeString(message);
       
-      const response = await this.ragAgent.chat(
+      const response = await this.mastraService.chat(
         userId, 
         sessionId, 
         sanitizedMessage, 
@@ -144,13 +234,13 @@ export class RAGController {
       );
 
       const duration = Date.now() - startTime;
-      console.log(`💬 Chat processed for user ${userId} in ${duration}ms`);
+      console.log(`💬 Mastra chat processed for user ${userId} in ${duration}ms`);
       
       res.json(response);
     } catch (error) {
       const duration = Date.now() - startTime;
       ErrorHandler.logError(error, { 
-        context: 'chat_endpoint',
+        context: 'mastra_chat_endpoint',
         duration,
         userId: req.body?.userId,
         sessionId: req.body?.sessionId
@@ -165,114 +255,144 @@ export class RAGController {
     }
   }
 
-  // Markdown content ingestion
-  async ingestMarkdown(req: Request, res: Response) {
+  /**
+   * Mastra-powered query endpoint (alias for query)
+   * Explicit endpoint name for Mastra-specific functionality
+   */
+  async mastraQuery(req: Request, res: Response): Promise<void> {
+    return this.query(req, res);
+  }
+
+  /**
+   * Mastra-powered chat endpoint (alias for chat)
+   * Explicit endpoint name for Mastra-specific functionality
+   */
+  async mastraChat(req: Request, res: Response): Promise<void> {
+    return this.chat(req, res);
+  }
+
+  /**
+   * Ingest markdown content with automatic chunking and embedding
+   * Implements proper ingestion pipeline as required
+   */
+  async ingestMarkdown(req: Request, res: Response): Promise<void> {
     try {
+      this.ensureInitialized();
+      
+      // Validate input
+      Validator.validateMarkdownRequest(req.body);
+      
       const { content, filename } = req.body;
-
-      if (!content || typeof content !== 'string') {
-        return res.status(400).json({
-          error: 'Content is required and must be a string'
-        });
-      }
-
-      const documentIds = await this.ragAgent.ingestMarkdownContent(
-        content,
-        filename || 'untitled.md'
+      
+      console.log(`📥 [Controller] Starting markdown ingestion: ${filename || 'document.md'}`);
+      
+      const result = await this.ingestionService!.ingestMarkdown(
+        content, 
+        filename || 'document.md'
       );
-
-      res.status(201).json({
-        message: 'Markdown content ingested successfully',
-        documentIds,
-        totalDocuments: documentIds.length
-      });
+      
+      if (result.success) {
+        res.status(201).json({
+          message: result.message,
+          documentsCreated: result.documentsCreated,
+          documentIds: result.documentIds,
+          framework: 'mastra',
+          pipeline: 'markdown-ingestion',
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(400).json({
+          error: 'Ingestion failed',
+          message: result.message,
+          details: result.error
+        });
+      }
     } catch (error) {
-      console.error('❌ Error ingesting markdown:', error);
-      res.status(500).json({
-        error: 'Failed to ingest markdown content',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      ErrorHandler.logError(error, { 
+        context: 'markdown_ingestion_endpoint',
+        filename: req.body?.filename
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
       });
     }
   }
 
-  // File ingestion
-  async ingestFile(req: Request, res: Response) {
+  /**
+   * Ingest markdown file from server filesystem
+   */
+  async ingestMarkdownFile(req: Request, res: Response): Promise<void> {
     try {
+      this.ensureInitialized();
+      
       const { filePath } = req.body;
-
-      if (!filePath || typeof filePath !== 'string') {
-        return res.status(400).json({
-          error: 'filePath is required and must be a string'
+      
+      if (!filePath) {
+        res.status(400).json({
+          error: 'File path is required',
+          message: 'Please provide a filePath in the request body'
         });
+        return;
       }
 
-      const documentIds = await this.ragAgent.ingestMarkdownFile(filePath);
-
-      res.status(201).json({
-        message: 'File ingested successfully',
-        documentIds,
-        totalDocuments: documentIds.length,
-        filePath
-      });
+      // Validate file path for security
+      Validator.validateFilePath(filePath);
+      
+      console.log(`📁 [Controller] Ingesting file: ${filePath}`);
+      
+      const result = await this.ingestionService!.ingestMarkdownFile(filePath);
+      
+      if (result.success) {
+        res.status(201).json({
+          message: result.message,
+          documentsCreated: result.documentsCreated,
+          documentIds: result.documentIds,
+          framework: 'mastra',
+          pipeline: 'file-ingestion',
+          filePath,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(400).json({
+          error: 'File ingestion failed',
+          message: result.message,
+          details: result.error
+        });
+      }
     } catch (error) {
-      console.error('❌ Error ingesting file:', error);
-      res.status(500).json({
-        error: 'Failed to ingest file',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      ErrorHandler.logError(error, { 
+        context: 'file_ingestion_endpoint',
+        filePath: req.body?.filePath
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
       });
     }
   }
 
-  // Get user memory
-  async getUserMemory(req: Request, res: Response) {
+  /**
+   * Gracefully shutdown the controller and clean up resources
+   */
+  async shutdown(): Promise<void> {
     try {
-      const { userId } = req.params;
-
-      if (!userId) {
-        return res.status(400).json({
-          error: 'userId is required'
-        });
+      if (this.isInitialized) {
+        await this.mastraService.shutdown();
+        if (this.ingestionService) {
+          await this.ingestionService.close();
+        }
+        this.isInitialized = false;
+        console.log('🔌 RAG Controller shutdown complete');
       }
-
-      const memory = await this.ragAgent.getUserMemory(userId);
-
-      res.json({
-        userId,
-        memory
-      });
     } catch (error) {
-      console.error('❌ Error getting user memory:', error);
-      res.status(500).json({
-        error: 'Failed to get user memory',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-
-  // Update user memory
-  async updateUserMemory(req: Request, res: Response) {
-    try {
-      const { userId } = req.params;
-      const { profileData, preferences } = req.body;
-
-      if (!userId) {
-        return res.status(400).json({
-          error: 'userId is required'
-        });
-      }
-
-      await this.ragAgent.updateUserMemory(userId, profileData || {}, preferences);
-
-      res.json({
-        message: 'User memory updated successfully',
-        userId
-      });
-    } catch (error) {
-      console.error('❌ Error updating user memory:', error);
-      res.status(500).json({
-        error: 'Failed to update user memory',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error('❌ Error during controller shutdown:', error);
     }
   }
 }

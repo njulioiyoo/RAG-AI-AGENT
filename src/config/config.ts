@@ -4,7 +4,7 @@
  */
 
 import * as dotenv from 'dotenv';
-import { InvalidAPIKeyError, DatabaseConnectionError } from '../utils/errors';
+import { InvalidAPIKeyError, DatabaseConnectionError } from '../utils/errors.js';
 
 // Load environment variables
 dotenv.config();
@@ -103,7 +103,7 @@ class ConfigManager {
       llm: {
         geminiApiKey: process.env.GEMINI_API_KEY || '',
         provider: 'gemini',
-        model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        model: process.env.GEMINI_MODEL || 'google/gemini-2.0-flash-exp',
         embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '2048'),
         temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7')

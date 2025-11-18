@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
-import { config } from './config';
-import { DatabaseConnectionError, ErrorHandler } from '../utils/errors';
+import { config } from './config.js';
+import { DatabaseConnectionError, ErrorHandler } from '../utils/errors.js';
 
 export class Database {
   private static instance: Database;

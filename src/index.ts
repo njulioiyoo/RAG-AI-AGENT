@@ -3,8 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import Database from './config/database';
-import apiRoutes from './routes/api';
+import Database from './config/database.js';
+import apiRoutes from './routes/api.js';
 
 // Load environment variables
 dotenv.config();
