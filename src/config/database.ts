@@ -20,6 +20,14 @@ export class Database {
   }
 
   /**
+   * Get the database pool instance
+   * Use this to share the pool across services
+   */
+  public getPool(): Pool {
+    return this.pool;
+  }
+
+  /**
    * Initialize PostgreSQL connection pool with enhanced configuration
    */
   private initializePool(): void {

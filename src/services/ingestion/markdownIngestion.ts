@@ -6,6 +6,7 @@
 import { Pool } from 'pg';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../config/config.js';
+import { Database } from '../../config/database.js';
 
 export interface IngestionResult {
   success: boolean;
@@ -29,20 +30,11 @@ export class MarkdownIngestionService {
   private genAI: GoogleGenerativeAI;
 
   constructor() {
-    const dbConfig = config.getDatabaseConfig();
     const llmConfig = config.getLLMConfig();
 
-    this.dbPool = new Pool({
-      connectionString: dbConfig.url,
-      host: dbConfig.host,
-      port: dbConfig.port,
-      database: dbConfig.database,
-      user: dbConfig.username,
-      password: dbConfig.password,
-      max: dbConfig.maxConnections,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: dbConfig.connectionTimeout,
-    });
+    // Use shared database pool from Database singleton
+    const database = Database.getInstance();
+    this.dbPool = database.getPool();
 
     this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
   }
@@ -261,12 +253,10 @@ export class MarkdownIngestionService {
 
   /**
    * Cleanup resources
+   * Note: We don't close the pool here as it's shared via Database singleton
    */
   async close(): Promise<void> {
-    try {
-      await this.dbPool.end();
-    } catch (error) {
-      console.error('Error closing ingestion service:', error);
-    }
+    // Don't close the pool as it's shared - Database singleton handles it
+    // This method is kept for API compatibility but does nothing
   }
 }

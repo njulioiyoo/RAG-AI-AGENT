@@ -73,11 +73,32 @@ export class MastraAgent {
       const prompt = this.buildPrompt(query, context, memoryContext);
 
       console.log('🤖 [Mastra] Generating response with agent...');
+      console.log('📝 [Mastra] Prompt length:', prompt.length);
+      console.log('📚 [Mastra] Sources count:', sources.length);
 
       // Generate response using Mastra Agent
       const response = await this.agent.generate(prompt);
 
-      return typeof response === 'string' ? response : 'I apologize, but I was unable to generate a response.';
+      // Log the response type and structure for debugging (only in development)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📦 [Mastra] Response type:', typeof response);
+        if (response && typeof response === 'object') {
+          console.log('📦 [Mastra] Response keys:', Object.keys(response));
+        }
+      }
+      
+      // Extract text from response
+      const answer = this.extractTextFromResponse(response);
+
+      // Validate that we got a meaningful answer
+      if (!answer || answer.trim().length === 0) {
+        console.error('❌ [Mastra] Empty answer generated');
+        console.error('❌ [Mastra] Response structure:', response ? Object.keys(response) : 'null');
+        return 'I apologize, but I was unable to generate a response.';
+      }
+
+      console.log('✅ [Mastra] Answer generated successfully, length:', answer.length);
+      return answer;
 
     } catch (error) {
       console.error('❌ [Mastra Agent] Generation error:', error);
@@ -127,13 +148,160 @@ export class MastraAgent {
    * Build comprehensive prompt for the agent
    */
   private buildPrompt(query: string, context: string, memoryContext: string): string {
-    return `${context}
+    // Build a clear, structured prompt that the agent can easily parse
+    let prompt = '';
+    
+    // Add context if available
+    if (context && context.trim().length > 0) {
+      prompt += `${context}\n\n`;
+    }
+    
+    // Add conversation history if available
+    if (memoryContext && memoryContext.trim().length > 0) {
+      prompt += `${memoryContext}\n`;
+    }
+    
+    // Add the user's question
+    prompt += `Question: ${query}\n\n`;
+    
+    // Add clear instructions with multilingual support
+    prompt += `Please answer the question above based on the provided context from the Employee Handbook. `;
+    prompt += `IMPORTANT: Detect the language of the user's question and respond in the SAME language. `;
+    prompt += `If the information is available in the context, provide a clear and helpful answer in the user's language. `;
+    prompt += `If the information is not available in the context, please say so clearly in the user's language.`;
+    
+    return prompt;
+  }
 
-${memoryContext}
+  /**
+   * Extract text from agent response - handles multiple response formats
+   * @private
+   */
+  private extractTextFromResponse(response: any): string {
+    // Handle string response
+    if (typeof response === 'string') {
+      return response;
+    }
 
-Human Question: ${query}
+    // Handle object response
+    if (!response || typeof response !== 'object') {
+      console.error('❌ [Mastra] Invalid response format:', response);
+      return 'I apologize, but I was unable to generate a response.';
+    }
 
-Please provide a helpful, accurate answer based on the provided context. If the information isn't available in the context, please say so clearly.`;
+    // Mastra Agent format: response.text contains the generated text
+    if ('text' in response && typeof response.text === 'string') {
+      return response.text;
+    }
+
+    // Try common response formats
+    if ('content' in response && typeof response.content === 'string') {
+      return response.content;
+    }
+
+    // Handle message format
+    if ('message' in response && response.message) {
+      return this.extractTextFromMessage(response.message);
+    }
+
+    // Handle choices array format
+    if ('choices' in response && Array.isArray(response.choices) && response.choices.length > 0) {
+      return this.extractTextFromChoice(response.choices[0]);
+    }
+
+    // Try to find text in nested structures
+    return this.extractTextFromNestedStructure(response);
+  }
+
+  /**
+   * Extract text from message object
+   * @private
+   */
+  private extractTextFromMessage(message: any): string {
+    if (typeof message === 'string') {
+      return message;
+    }
+    if (message && typeof message === 'object' && 'content' in message) {
+      return String(message.content);
+    }
+    return String(message);
+  }
+
+  /**
+   * Extract text from choice object
+   * @private
+   */
+  private extractTextFromChoice(choice: any): string {
+    if (choice && 'text' in choice) {
+      return String(choice.text);
+    }
+    if (choice && 'message' in choice && choice.message) {
+      return this.extractTextFromMessage(choice.message);
+    }
+    return String(choice);
+  }
+
+  /**
+   * Recursively search for text in nested structures
+   * @private
+   */
+  private extractTextFromNestedStructure(response: any): string {
+    const responseStr = JSON.stringify(response);
+    
+    // Check if response might contain text/content/message
+    if (!responseStr.includes('text') && !responseStr.includes('content') && !responseStr.includes('message')) {
+      console.warn('⚠️ [Mastra] Unexpected response format:', responseStr.substring(0, 200));
+      return responseStr;
+    }
+
+    try {
+      const parsed = JSON.parse(responseStr);
+      const foundText = this.findTextRecursively(parsed);
+      
+      if (foundText) {
+        return foundText;
+      }
+      
+      throw new Error('Text not found in nested structure');
+    } catch (e) {
+      console.warn('⚠️ [Mastra] Could not extract text from nested structure');
+      return responseStr;
+    }
+  }
+
+  /**
+   * Recursively find text in object structure
+   * @private
+   */
+  private findTextRecursively(obj: any): string | null {
+    if (typeof obj === 'string' && obj.length > 10) {
+      return obj;
+    }
+
+    if (typeof obj !== 'object' || obj === null) {
+      return null;
+    }
+
+    // Check common text properties
+    if ('text' in obj && typeof obj.text === 'string') {
+      return obj.text;
+    }
+    if ('content' in obj && typeof obj.content === 'string') {
+      return obj.content;
+    }
+    if ('message' in obj) {
+      return this.findTextRecursively(obj.message);
+    }
+
+    // Recursively search all properties
+    for (const key in obj) {
+      const result = this.findTextRecursively(obj[key]);
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -148,12 +316,20 @@ Your capabilities:
 - Remember conversation context and user preferences
 - Be professional, courteous, and empathetic
 - Always cite sources when referencing specific policies
+- Support multiple languages: automatically detect the language of the user's question and respond in the same language
+
+Multilingual Support:
+- Detect the language of the user's question automatically (Indonesian, English, or other languages)
+- Always respond in the same language as the user's question
+- If the context documents are in a different language, translate and adapt the information while maintaining accuracy
+- Maintain professional tone and clarity regardless of language
 
 Guidelines:
-- If information is not available in the context, say so clearly
+- If information is not available in the context, say so clearly in the user's language
 - Provide actionable advice when possible
 - Use a friendly but professional tone
-- Format responses clearly with bullet points or steps when appropriate`;
+- Format responses clearly with bullet points or steps when appropriate
+- Ensure translations are accurate and culturally appropriate`;
   }
 
   /**

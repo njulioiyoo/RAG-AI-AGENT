@@ -6,6 +6,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool } from 'pg';
 import { config } from '../../config/config.js';
+import { Database } from '../../config/database.js';
 import {
   QueryOptions,
   ChatOptions,
@@ -249,12 +250,11 @@ export class MastraRAGService {
 
   /**
    * Gracefully shutdown service and cleanup resources
+   * Note: We don't close the pool here as it's shared via Database singleton
    */
   async shutdown(): Promise<void> {
     try {
-      if (this.dbPool) {
-        await this.dbPool.end();
-      }
+      // Don't close the pool as it's shared - Database singleton handles it
       this.isInitialized = false;
       console.log('🔌 Mastra RAG Service shutdown complete');
     } catch (error) {
@@ -266,24 +266,14 @@ export class MastraRAGService {
    * Initialize core services (database, AI)
    */
   private async initializeServices(): Promise<void> {
-    const dbConfig = config.getDatabaseConfig();
     const llmConfig = config.getLLMConfig();
 
     // Initialize Google AI
     this.genAI = new GoogleGenerativeAI(llmConfig.geminiApiKey);
 
-    // Initialize database connection
-    this.dbPool = new Pool({
-      connectionString: dbConfig.url,
-      host: dbConfig.host,
-      port: dbConfig.port,
-      database: dbConfig.database,
-      user: dbConfig.username,
-      password: dbConfig.password,
-      max: dbConfig.maxConnections,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: dbConfig.connectionTimeout,
-    });
+    // Use shared database pool from Database singleton
+    const database = Database.getInstance();
+    this.dbPool = database.getPool();
   }
 
   /**

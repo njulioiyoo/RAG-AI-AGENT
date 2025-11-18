@@ -50,7 +50,110 @@ export class VectorOperations {
   }
 
   /**
+   * Translate query to Indonesian for better multilingual search
+   * This helps when documents are in Indonesian but query is in English
+   */
+  private async translateQueryToIndonesian(query: string): Promise<string> {
+    try {
+      const llmConfig = config.getLLMConfig();
+      const model = this.genAI.getGenerativeModel({ 
+        model: SERVICE_CONSTANTS.CHAT_MODEL 
+      });
+
+      const prompt = `Translate the following English question to Indonesian. Only return the translation, nothing else:\n\n"${query}"`;
+      
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const translated = response.text().trim();
+      
+      console.log(`🌐 [Translation] "${query}" -> "${translated}"`);
+      return translated;
+    } catch (error) {
+      console.warn(`⚠️ [Translation] Failed to translate query, using original: ${error}`);
+      return query; // Return original if translation fails
+    }
+  }
+
+  /**
+   * Execute vector similarity search query
+   * @private
+   */
+  private async executeVectorSearch(
+    embedding: number[],
+    threshold: number,
+    limit: number
+  ): Promise<any> {
+    const searchQuery = `
+      SELECT 
+        id,
+        title,
+        content,
+        metadata,
+        embedding <-> $1::vector as distance,
+        1 - (embedding <-> $1::vector) as similarity
+      FROM rag_documents 
+      WHERE 1 - (embedding <-> $1::vector) > $2
+      ORDER BY embedding <-> $1::vector
+      LIMIT $3;
+    `;
+
+    return await this.dbPool.query(searchQuery, [
+      `[${embedding.join(',')}]`,
+      threshold,
+      limit
+    ]);
+  }
+
+  /**
+   * Map database rows to VectorSearchDocument format
+   * @private
+   */
+  private mapRowsToDocuments(rows: any[]): VectorSearchDocument[] {
+    return rows.map(row => ({
+      document: {
+        id: row.id,
+        title: row.title || 'Untitled Document',
+        content: row.content || '',
+        metadata: row.metadata || {}
+      },
+      similarity: parseFloat(row.similarity) || 0
+    }));
+  }
+
+  /**
+   * Try vector search with multiple fallback thresholds
+   * @private
+   */
+  private async trySearchWithFallbackThresholds(
+    embedding: number[],
+    originalThreshold: number,
+    limit: number
+  ): Promise<any> {
+    const fallbackThresholds = [
+      Math.max(0.05, originalThreshold * 0.5),
+      0.05,
+      0.01,
+      0
+    ].filter(t => t < originalThreshold);
+
+    for (const threshold of fallbackThresholds) {
+      console.log(`🌐 [Multilingual] Trying with lower threshold: ${threshold}`);
+      
+      const result = await this.executeVectorSearch(embedding, threshold, limit);
+      console.log(`🌐 [Multilingual] Found ${result.rows.length} documents with similarity > ${threshold}`);
+      
+      if (result.rows.length > 0) {
+        console.log(`✅ [Multilingual] Successfully found documents with threshold ${threshold}`);
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Perform semantic vector search in document database
+   * Includes multilingual fallback support
    */
   async vectorSearch(
     query: string, 
@@ -63,40 +166,39 @@ export class VectorOperations {
       console.log(`🔍 Search params - limit: ${limit}, threshold: ${threshold}`);
 
       // Generate embedding for the query
-      const queryEmbedding = await this.generateQueryEmbedding(query);
+      let queryEmbedding = await this.generateQueryEmbedding(query);
 
-      // Perform vector similarity search
-      const searchQuery = `
-        SELECT 
-          id,
-          title,
-          content,
-          metadata,
-          embedding <-> $1::vector as distance,
-          1 - (embedding <-> $1::vector) as similarity
-        FROM rag_documents 
-        WHERE 1 - (embedding <-> $1::vector) > $2
-        ORDER BY embedding <-> $1::vector
-        LIMIT $3;
-      `;
-
-      const result = await this.dbPool.query(searchQuery, [
-        `[${queryEmbedding.join(',')}]`,
-        threshold,
-        limit
-      ]);
-
+      // Perform initial vector similarity search
+      let result = await this.executeVectorSearch(queryEmbedding, threshold, limit);
       console.log(`🔍 Found ${result.rows.length} documents with similarity > ${threshold}`);
 
-      return result.rows.map(row => ({
-        document: {
-          id: row.id,
-          title: row.title || 'Untitled Document',
-          content: row.content || '',
-          metadata: row.metadata || {}
-        },
-        similarity: parseFloat(row.similarity) || 0
-      }));
+      // Multilingual fallback: if no results found, try with progressively lower thresholds
+      if (result.rows.length === 0) {
+        const fallbackResult = await this.trySearchWithFallbackThresholds(
+          queryEmbedding,
+          threshold,
+          limit
+        );
+        
+        if (fallbackResult) {
+          result = fallbackResult;
+        } else {
+          // If still no results, try translating query to Indonesian and search again
+          console.log(`🌐 [Multilingual] Still no results, trying query translation to Indonesian...`);
+          
+          try {
+            const translatedQuery = await this.translateQueryToIndonesian(query);
+            queryEmbedding = await this.generateQueryEmbedding(translatedQuery);
+            
+            result = await this.executeVectorSearch(queryEmbedding, 0, limit);
+            console.log(`🌐 [Multilingual] Found ${result.rows.length} documents with translated query`);
+          } catch (translationError) {
+            console.warn(`⚠️ [Multilingual] Query translation failed: ${translationError}`);
+          }
+        }
+      }
+
+      return this.mapRowsToDocuments(result.rows);
 
     } catch (error) {
       throw new VectorSearchError(

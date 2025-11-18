@@ -19,6 +19,7 @@
 4. **🤝 Context-Aware Responses** - Menggabungkan document retrieval dengan conversation history
 5. **📄 Document Management** - Upload, processing, dan chunking dokumen HR policies
 6. **🎯 Professional HR Assistant** - Specialized agent untuk employee handbook queries
+7. **🌐 Multilingual Support** - Auto-detect bahasa query dan response dalam bahasa yang sama, dengan intelligent fallback untuk cross-language search
 
 - Node.js 20+
 - PostgreSQL dengan pgvector extension
@@ -80,7 +81,7 @@ Mastra service health check dan status
 ```
 
 #### **POST** `/api/query`
-Simple RAG query menggunakan Mastra Agent
+Simple RAG query menggunakan Mastra Agent dengan dukungan multibahasa
 ```json
 {
   "query": "How many annual leave days am I entitled to?",
@@ -89,8 +90,14 @@ Simple RAG query menggunakan Mastra Agent
 }
 ```
 
+**Multilingual Support:**
+- Query dalam bahasa apapun (Indonesia, English, dll) akan otomatis terdeteksi
+- Response akan diberikan dalam bahasa yang sama dengan query
+- Jika dokumen dalam bahasa berbeda, agent akan menerjemahkan dan mengadaptasi informasi
+- Vector search dengan intelligent fallback untuk cross-language matching
+
 #### **POST** `/api/chat`
-Conversational chat dengan memory (Mastra-powered)
+Conversational chat dengan memory (Mastra-powered) dan dukungan multibahasa
 ```json
 {
   "userId": "emp-001",
@@ -100,6 +107,11 @@ Conversational chat dengan memory (Mastra-powered)
   "threshold": 0.3
 }
 ```
+
+**Multilingual Chat:**
+- Mendukung percakapan dalam berbagai bahasa
+- Agent akan merespons dalam bahasa yang sama dengan pesan user
+- Conversation history dipertahankan dalam bahasa asli
 
 ### 📥 Advanced Markdown Ingestion Pipeline
 
@@ -126,19 +138,40 @@ Conversational chat dengan memory (Mastra-powered)
 
 ## 📚 Usage Examples
 
-### 1. Simple Query
+### 1. Simple Query (Multilingual)
 ```bash
+# Query dalam Bahasa Indonesia
 curl -X POST http://localhost:3001/api/query \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "What is the sick leave policy?",
+    "query": "Berapa hari cuti tahunan yang saya dapatkan?",
+    "limit": 3,
+    "threshold": 0.4
+  }'
+
+# Query dalam English (akan otomatis menemukan dokumen Indonesia)
+curl -X POST http://localhost:3001/api/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "How many annual leave days am I entitled to?",
     "limit": 3,
     "threshold": 0.4
   }'
 ```
 
-### 2. Chat with Memory
+### 2. Chat with Memory (Multilingual)
 ```bash
+# Chat dalam Bahasa Indonesia
+curl -X POST http://localhost:3001/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "emp-001",
+    "sessionId": "hr-session-123",
+    "message": "Saya perlu cuti sakit besok. Apa yang harus saya lakukan?",
+    "limit": 5
+  }'
+
+# Chat dalam English
 curl -X POST http://localhost:3001/api/chat \
   -H "Content-Type: application/json" \
   -d '{
@@ -202,11 +235,73 @@ Project ini telah **100% dimigrasi ke Mastra framework**, menggantikan semua cus
 - **Vector Dimension**: 768
 - **Similarity Threshold**: 0.3 (default)
 
+### Multilingual Features
+- **Auto Language Detection**: Otomatis mendeteksi bahasa dari query user
+- **Response Language Matching**: Response dalam bahasa yang sama dengan query
+- **Cross-Language Search**: Intelligent fallback untuk mencari dokumen dalam bahasa berbeda
+  - Progressive threshold fallback (0.3 → 0.15 → 0.05 → 0.01 → 0)
+  - Query translation fallback (English → Indonesian, dll)
+- **Supported Languages**: Indonesian, English, dan bahasa lain yang didukung Gemini
+
 ### Performance Settings
-- **DB Connections**: 20 max
+- **DB Connections**: 20 max (shared pool via Database singleton)
 - **Request Timeout**: 30s
 - **Vector Index**: ivfflat dengan cosine distance
 - **Memory Limit**: 10 recent conversations per session
+- **Multilingual Search**: Automatic threshold adjustment untuk cross-language matching
+
+## 🌐 Multilingual Support
+
+### How It Works
+
+1. **Auto Language Detection**
+   - Agent secara otomatis mendeteksi bahasa dari query user
+   - Tidak perlu konfigurasi tambahan
+
+2. **Response in User's Language**
+   - Agent akan merespons dalam bahasa yang sama dengan query
+   - Contoh: Query Indonesia → Response Indonesia, Query English → Response English
+
+3. **Cross-Language Document Search**
+   - Jika dokumen dalam bahasa berbeda dengan query, sistem akan:
+     - Mencoba dengan threshold yang lebih rendah secara progresif
+     - Menerjemahkan query ke bahasa dokumen jika diperlukan
+     - Tetap memberikan response dalam bahasa query user
+
+4. **Intelligent Fallback Strategy**
+   ```
+   Query (English) → Dokumen (Indonesian)
+   ├─ Try threshold 0.3 → No results
+   ├─ Try threshold 0.15 → No results  
+   ├─ Try threshold 0.05 → No results
+   ├─ Try threshold 0.01 → No results
+   ├─ Translate query to Indonesian → Search with threshold 0
+   └─ Found documents → Translate & respond in English
+   ```
+
+### Supported Languages
+
+- **Indonesian** (Bahasa Indonesia)
+- **English**
+- **Other languages** supported by Google Gemini (100+ languages)
+
+### Example Use Cases
+
+```bash
+# User asks in English, documents in Indonesian
+POST /api/query
+{
+  "query": "How many annual leave days am I entitled to?"
+}
+# Response: "You are entitled to 12 paid annual leave days per year..."
+
+# User asks in Indonesian, documents in Indonesian  
+POST /api/query
+{
+  "query": "Berapa hari cuti tahunan yang saya dapatkan?"
+}
+# Response: "Anda berhak atas 12 hari cuti tahunan berbayar per tahun..."
+```
 
 ## 🔒 Security
 
