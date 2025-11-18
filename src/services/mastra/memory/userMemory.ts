@@ -20,61 +20,84 @@ export class UserMemoryManager {
 
   /**
    * Retrieve user memory and conversation history
+   * Automatically creates user profile if it doesn't exist
    */
   async getUserMemory(userId: string, sessionId: string): Promise<UserMemory> {
     try {
-      // Get user preferences
+      // Get user preferences from user_profiles table (matches schema)
       const userQuery = `
-        SELECT preferences, created_at, updated_at
-        FROM user_preferences 
+        SELECT preferences, profile_data, created_at, updated_at
+        FROM user_profiles 
         WHERE user_id = $1
         LIMIT 1;
       `;
       
-      const userResult = await this.dbPool.query(userQuery, [userId]);
+      let preferences = {};
+      let profileData = {};
       
-      const preferences = userResult.rows.length > 0 
-        ? userResult.rows[0].preferences || {}
-        : {};
+      try {
+        const userResult = await this.dbPool.query(userQuery, [userId]);
+        if (userResult.rows.length > 0) {
+          preferences = userResult.rows[0].preferences || {};
+          profileData = userResult.rows[0].profile_data || {};
+        } else {
+          // User doesn't exist, create a new user profile
+          await this.createUserProfile(userId);
+          console.log(`✅ [UserMemory] Created new user profile for: ${userId}`);
+        }
+      } catch (error: any) {
+        // If table doesn't exist or query fails, try to create user anyway
+        console.warn(`⚠️ [UserMemory] Could not fetch user preferences: ${error.message}`);
+        try {
+          await this.createUserProfile(userId);
+        } catch (createError) {
+          console.warn(`⚠️ [UserMemory] Could not create user profile: ${createError}`);
+        }
+      }
 
-      // Get recent conversation history for this session
+      // Get recent conversation history for this session (matches schema)
       const historyQuery = `
-        SELECT query, response, timestamp
+        SELECT user_message, assistant_response, created_at
         FROM conversation_history 
         WHERE user_id = $1 AND session_id = $2
-        ORDER BY timestamp DESC 
+        ORDER BY created_at ASC 
         LIMIT $3;
       `;
 
-      const historyResult = await this.dbPool.query(historyQuery, [
-        userId, 
-        sessionId, 
-        SERVICE_CONSTANTS.MAX_HISTORY_TURNS
-      ]);
+      let conversationHistory: any[] = [];
+      
+      try {
+        const historyResult = await this.dbPool.query(historyQuery, [
+          userId, 
+          sessionId, 
+          SERVICE_CONSTANTS.MAX_HISTORY_TURNS
+        ]);
 
-      const conversationHistory = historyResult.rows
-        .reverse() // Reverse to get chronological order
-        .map(row => ({
-          query: row.query,
-          response: row.response,
-          timestamp: row.timestamp
+        conversationHistory = historyResult.rows.map(row => ({
+          user_message: row.user_message,
+          assistant_response: row.assistant_response,
+          created_at: row.created_at
         }));
+      } catch (error: any) {
+        // If table doesn't exist or query fails, use empty history
+        console.warn(`⚠️ [UserMemory] Could not fetch conversation history: ${error.message}`);
+      }
 
       return {
-        conversations: conversationHistory.map(h => ({
-          user_message: h.query,
-          assistant_response: h.response,
-          created_at: h.timestamp
-        })),
+        conversations: conversationHistory,
         preferences,
-        profile: { userId, sessionId }
+        profile: { userId, sessionId, ...profileData }
       };
 
     } catch (error) {
-      throw new DatabaseError(
-        `Failed to retrieve user memory for user: ${userId}`,
-        { userId, sessionId, originalError: error }
-      );
+      // Return empty memory instead of throwing error
+      // This allows chat to work even if memory tables are missing
+      console.error(`❌ [UserMemory] Error retrieving memory, returning empty: ${error}`);
+      return {
+        conversations: [],
+        preferences: {},
+        profile: { userId, sessionId }
+      };
     }
   }
 
@@ -88,11 +111,11 @@ export class UserMemoryManager {
     response: string
   ): Promise<void> {
     try {
+      // Use schema column names: user_message and assistant_response
       const insertQuery = `
-        INSERT INTO conversation_history (user_id, session_id, query, response, timestamp)
+        INSERT INTO conversation_history (user_id, session_id, user_message, assistant_response, created_at)
         VALUES ($1, $2, $3, $4, NOW())
-        ON CONFLICT (user_id, session_id, query, timestamp) 
-        DO UPDATE SET response = EXCLUDED.response;
+        ON CONFLICT DO NOTHING;
       `;
 
       await this.dbPool.query(insertQuery, [userId, sessionId, query, response]);
@@ -105,22 +128,59 @@ export class UserMemoryManager {
         AND id NOT IN (
           SELECT id FROM conversation_history 
           WHERE user_id = $1 AND session_id = $2 
-          ORDER BY timestamp DESC 
+          ORDER BY created_at DESC 
           LIMIT $3
         );
       `;
 
-      await this.dbPool.query(cleanupQuery, [
-        userId, 
-        sessionId, 
-        SERVICE_CONSTANTS.MAX_HISTORY_TURNS * 2
-      ]);
+      try {
+        await this.dbPool.query(cleanupQuery, [
+          userId, 
+          sessionId, 
+          SERVICE_CONSTANTS.MAX_HISTORY_TURNS * 2
+        ]);
+      } catch (cleanupError) {
+        // Non-critical error, just log it
+        console.warn(`⚠️ [UserMemory] Could not cleanup old conversations: ${cleanupError}`);
+      }
 
     } catch (error) {
-      throw new DatabaseError(
-        `Failed to save conversation turn for user: ${userId}`,
-        { userId, sessionId, query: query.substring(0, 50), originalError: error }
-      );
+      // Don't throw error - just log it so chat can still work
+      console.error(`❌ [UserMemory] Failed to save conversation turn: ${error}`);
+      // Don't throw - allow chat to continue even if saving fails
+    }
+  }
+
+  /**
+   * Create a new user profile if it doesn't exist
+   * @private
+   */
+  private async createUserProfile(userId: string): Promise<void> {
+    try {
+      const insertQuery = `
+        INSERT INTO user_profiles (user_id, profile_data, preferences, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        ON CONFLICT (user_id) DO NOTHING;
+      `;
+
+      const defaultProfileData = {
+        user_id: userId,
+        created_at: new Date().toISOString()
+      };
+
+      const defaultPreferences = {
+        language: 'auto', // Auto-detect language
+        response_style: 'detailed'
+      };
+
+      await this.dbPool.query(insertQuery, [
+        userId,
+        JSON.stringify(defaultProfileData),
+        JSON.stringify(defaultPreferences)
+      ]);
+    } catch (error) {
+      // Log but don't throw - allow system to continue
+      console.warn(`⚠️ [UserMemory] Could not create user profile for ${userId}: ${error}`);
     }
   }
 
@@ -132,8 +192,9 @@ export class UserMemoryManager {
     preferences: Record<string, any>
   ): Promise<void> {
     try {
+      // Use user_profiles table (matches schema)
       const upsertQuery = `
-        INSERT INTO user_preferences (user_id, preferences, updated_at)
+        INSERT INTO user_profiles (user_id, preferences, updated_at)
         VALUES ($1, $2, NOW())
         ON CONFLICT (user_id) 
         DO UPDATE SET 
@@ -147,10 +208,8 @@ export class UserMemoryManager {
       ]);
 
     } catch (error) {
-      throw new DatabaseError(
-        `Failed to update preferences for user: ${userId}`,
-        { userId, preferences, originalError: error }
-      );
+      // Don't throw error - just log it
+      console.error(`❌ [UserMemory] Failed to update preferences: ${error}`);
     }
   }
 
@@ -163,11 +222,12 @@ export class UserMemoryManager {
     lastActivity: Date | null;
   }> {
     try {
+      // Use created_at instead of timestamp (matches schema)
       const statsQuery = `
         SELECT 
           COUNT(DISTINCT session_id) as total_sessions,
           COUNT(*) as total_questions,
-          MAX(timestamp) as last_activity
+          MAX(created_at) as last_activity
         FROM conversation_history 
         WHERE user_id = $1;
       `;
@@ -182,10 +242,13 @@ export class UserMemoryManager {
       };
 
     } catch (error) {
-      throw new DatabaseError(
-        `Failed to get stats for user: ${userId}`,
-        { userId, originalError: error }
-      );
+      // Return empty stats instead of throwing
+      console.error(`❌ [UserMemory] Failed to get stats: ${error}`);
+      return {
+        totalSessions: 0,
+        totalQuestions: 0,
+        lastActivity: null
+      };
     }
   }
 }
