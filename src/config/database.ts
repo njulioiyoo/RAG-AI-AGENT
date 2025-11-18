@@ -1,6 +1,12 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, QueryResult } from 'pg';
 import { config } from './config.js';
 import { DatabaseConnectionError, ErrorHandler } from '../utils/errors.js';
+
+interface PoolStats {
+  total: number;
+  idle: number;
+  waiting: number;
+}
 
 export class Database {
   private static instance: Database;
@@ -64,8 +70,8 @@ export class Database {
   /**
    * Execute query with comprehensive error handling
    */
-  public async query(text: string, params?: any[]): Promise<any> {
-    let client;
+  public async query(text: string, params?: unknown[]): Promise<QueryResult> {
+    let client: PoolClient | undefined;
     const startTime = Date.now();
     
     try {
@@ -78,7 +84,7 @@ export class Database {
       }
       
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       
       ErrorHandler.logError(error, { 
@@ -89,17 +95,19 @@ export class Database {
       });
       
       // Provide specific error messages
-      if (error.code === 'ECONNREFUSED') {
-        throw new DatabaseConnectionError('Database server is not reachable');
-      } else if (error.code === '42P01') {
-        throw new DatabaseConnectionError(`Table does not exist: ${error.message}`);
-      } else if (error.code === '42703') {
-        throw new DatabaseConnectionError(`Column does not exist: ${error.message}`);
-      } else if (error.code === '23505') {
-        throw new DatabaseConnectionError(`Duplicate key violation: ${error.detail}`);
-      } else {
-        throw error;
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as { code: string; message?: string; detail?: string };
+        if (dbError.code === 'ECONNREFUSED') {
+          throw new DatabaseConnectionError('Database server is not reachable');
+        } else if (dbError.code === '42P01') {
+          throw new DatabaseConnectionError(`Table does not exist: ${dbError.message || 'Unknown'}`);
+        } else if (dbError.code === '42703') {
+          throw new DatabaseConnectionError(`Column does not exist: ${dbError.message || 'Unknown'}`);
+        } else if (dbError.code === '23505') {
+          throw new DatabaseConnectionError(`Duplicate key violation: ${dbError.detail || 'Unknown'}`);
+        }
       }
+      throw error;
     } finally {
       if (client) {
         client.release();
@@ -129,8 +137,9 @@ export class Database {
       this.isConnected = true;
       return true;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.isConnected = false;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       ErrorHandler.logError(error, { 
         context: 'database_connection_test',
         dbConfig: {
@@ -140,7 +149,7 @@ export class Database {
         }
       });
 
-      console.error('❌ Database connection test failed:', error.message);
+      console.error('❌ Database connection test failed:', errorMessage);
       return false;
     } finally {
       if (client) {
@@ -163,14 +172,15 @@ export class Database {
       console.log('✅ pgvector extension ensured');
       return true;
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.vectorSupported = false;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      if (error.message?.includes('extension "vector" is not available')) {
+      if (errorMessage.includes('extension "vector" is not available')) {
         console.warn('⚠️  pgvector extension is not installed on this PostgreSQL instance');
         console.warn('   Install pgvector: https://github.com/pgvector/pgvector#installation');
       } else {
-        console.warn('⚠️  pgvector functionality test failed:', error.message);
+        console.warn('⚠️  pgvector functionality test failed:', errorMessage);
       }
       
       return false;
@@ -203,7 +213,7 @@ export class Database {
   /**
    * Get connection and vector support status
    */
-  public getStatus(): { connected: boolean; vectorSupported: boolean; poolStats: any } {
+  public getStatus(): { connected: boolean; vectorSupported: boolean; poolStats: PoolStats } {
     return {
       connected: this.isConnected,
       vectorSupported: this.vectorSupported,

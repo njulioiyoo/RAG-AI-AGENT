@@ -4,7 +4,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Pool } from 'pg';
+import { Pool, QueryResult } from 'pg';
 import { config } from '../../../config/config.js';
 import {
   QueryOptions,
@@ -82,7 +82,7 @@ export class VectorOperations {
     embedding: number[],
     threshold: number,
     limit: number
-  ): Promise<any> {
+  ): Promise<QueryResult> {
     const searchQuery = `
       SELECT 
         id,
@@ -108,15 +108,21 @@ export class VectorOperations {
    * Map database rows to VectorSearchDocument format
    * @private
    */
-  private mapRowsToDocuments(rows: any[]): VectorSearchDocument[] {
+  private mapRowsToDocuments(rows: Array<{
+    id: number;
+    title: string | null;
+    content: string | null;
+    metadata: Record<string, unknown> | null;
+    similarity: number | string;
+  }>): VectorSearchDocument[] {
     return rows.map(row => ({
       document: {
         id: row.id,
         title: row.title || 'Untitled Document',
         content: row.content || '',
-        metadata: row.metadata || {}
+        metadata: (row.metadata as Record<string, unknown>) || {}
       },
-      similarity: parseFloat(row.similarity) || 0
+      similarity: typeof row.similarity === 'number' ? row.similarity : parseFloat(String(row.similarity)) || 0
     }));
   }
 
@@ -128,7 +134,7 @@ export class VectorOperations {
     embedding: number[],
     originalThreshold: number,
     limit: number
-  ): Promise<any> {
+  ): Promise<QueryResult | null> {
     const fallbackThresholds = [
       Math.max(0.05, originalThreshold * 0.5),
       0.05,
@@ -214,7 +220,7 @@ export class VectorOperations {
   async addDocumentWithEmbedding(
     title: string, 
     content: string, 
-    metadata: Record<string, any> = {}
+    metadata: Record<string, unknown> = {}
   ): Promise<{ documentId: string }> {
     try {
       // Generate embedding for document content

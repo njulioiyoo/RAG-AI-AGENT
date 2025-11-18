@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { RAGController } from '../controllers/ragController.js';
 
 const router = Router();
@@ -23,7 +23,7 @@ const initializeController = async () => {
 initializationPromise = initializeController();
 
 // Middleware to ensure controller is initialized
-const ensureInitialized = async (req: any, res: any, next: any) => {
+const ensureInitialized = async (req: Request, res: Response, next: NextFunction) => {
   if (!isInitialized && initializationPromise) {
     try {
       await initializationPromise;

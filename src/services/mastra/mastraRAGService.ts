@@ -204,7 +204,7 @@ export class MastraRAGService {
   async addDocument(
     title: string,
     content: string,
-    metadata: Record<string, any> = {}
+    metadata: Record<string, unknown> = {}
   ): Promise<DocumentAddResponse> {
     this.ensureInitialized();
 

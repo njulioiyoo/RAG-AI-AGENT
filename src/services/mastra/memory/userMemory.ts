@@ -3,13 +3,27 @@
  * Handles conversation history and user preferences
  */
 
-import { Pool } from 'pg';
+import { Pool, QueryResult } from 'pg';
 import {
   UserMemory,
   ChatOptions,
   SERVICE_CONSTANTS,
   DatabaseError,
+  ConversationTurn,
 } from '../../../types/mastra.js';
+
+interface UserProfileRow {
+  preferences: Record<string, unknown> | null;
+  profile_data: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ConversationHistoryRow {
+  user_message: string;
+  assistant_response: string;
+  created_at: Date;
+}
 
 export class UserMemoryManager {
   private dbPool: Pool;
@@ -32,22 +46,24 @@ export class UserMemoryManager {
         LIMIT 1;
       `;
       
-      let preferences = {};
-      let profileData = {};
+      let preferences: Record<string, unknown> = {};
+      let profileData: Record<string, unknown> = {};
       
       try {
-        const userResult = await this.dbPool.query(userQuery, [userId]);
+        const userResult: QueryResult<UserProfileRow> = await this.dbPool.query(userQuery, [userId]);
         if (userResult.rows.length > 0) {
-          preferences = userResult.rows[0].preferences || {};
-          profileData = userResult.rows[0].profile_data || {};
+          const row = userResult.rows[0];
+          preferences = (row.preferences as Record<string, unknown>) || {};
+          profileData = (row.profile_data as Record<string, unknown>) || {};
         } else {
           // User doesn't exist, create a new user profile
           await this.createUserProfile(userId);
           console.log(`✅ [UserMemory] Created new user profile for: ${userId}`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If table doesn't exist or query fails, try to create user anyway
-        console.warn(`⚠️ [UserMemory] Could not fetch user preferences: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(`⚠️ [UserMemory] Could not fetch user preferences: ${errorMessage}`);
         try {
           await this.createUserProfile(userId);
         } catch (createError) {
@@ -64,10 +80,10 @@ export class UserMemoryManager {
         LIMIT $3;
       `;
 
-      let conversationHistory: any[] = [];
+      let conversationHistory: ConversationTurn[] = [];
       
       try {
-        const historyResult = await this.dbPool.query(historyQuery, [
+        const historyResult: QueryResult<ConversationHistoryRow> = await this.dbPool.query(historyQuery, [
           userId, 
           sessionId, 
           SERVICE_CONSTANTS.MAX_HISTORY_TURNS
@@ -78,9 +94,10 @@ export class UserMemoryManager {
           assistant_response: row.assistant_response,
           created_at: row.created_at
         }));
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If table doesn't exist or query fails, use empty history
-        console.warn(`⚠️ [UserMemory] Could not fetch conversation history: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(`⚠️ [UserMemory] Could not fetch conversation history: ${errorMessage}`);
       }
 
       return {
@@ -189,7 +206,7 @@ export class UserMemoryManager {
    */
   async updateUserPreferences(
     userId: string,
-    preferences: Record<string, any>
+    preferences: Record<string, unknown>
   ): Promise<void> {
     try {
       // Use user_profiles table (matches schema)

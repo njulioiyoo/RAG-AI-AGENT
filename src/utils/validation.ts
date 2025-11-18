@@ -3,11 +3,12 @@
  * Provides comprehensive validation for API inputs and data
  */
 
+import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from './errors.js';
 
 export interface ValidationRule {
   field: string;
-  value: any;
+  value: unknown;
   rules: ValidationType[];
 }
 
@@ -28,7 +29,7 @@ export class Validator {
   /**
    * Validate a single value against rules
    */
-  static validateField(field: string, value: any, rules: ValidationType[], options?: any): void {
+  static validateField(field: string, value: unknown, rules: ValidationType[], options?: Record<string, unknown>): void {
     // Required check
     if (rules.includes(ValidationType.REQUIRED) && this.isEmpty(value)) {
       throw new ValidationError(field, 'Field is required');
@@ -56,13 +57,13 @@ export class Validator {
 
     // String validations
     if (typeof value === 'string') {
-      if (rules.includes(ValidationType.MIN_LENGTH) && options?.minLength) {
+      if (rules.includes(ValidationType.MIN_LENGTH) && options?.minLength && typeof options.minLength === 'number') {
         if (value.length < options.minLength) {
           throw new ValidationError(field, `Must be at least ${options.minLength} characters`);
         }
       }
 
-      if (rules.includes(ValidationType.MAX_LENGTH) && options?.maxLength) {
+      if (rules.includes(ValidationType.MAX_LENGTH) && options?.maxLength && typeof options.maxLength === 'number') {
         if (value.length > options.maxLength) {
           throw new ValidationError(field, `Must be no more than ${options.maxLength} characters`);
         }
@@ -94,55 +95,75 @@ export class Validator {
   /**
    * Validate chat request
    */
-  static validateChatRequest(body: any): void {
-    this.validateField('userId', body.userId, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1 });
-    this.validateField('sessionId', body.sessionId, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1 });
-    this.validateField('message', body.message, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 10000 });
+  static validateChatRequest(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
     
-    if (body.limit !== undefined) {
-      this.validateField('limit', body.limit, [ValidationType.NUMBER, ValidationType.POSITIVE]);
+    this.validateField('userId', bodyObj.userId, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1 });
+    this.validateField('sessionId', bodyObj.sessionId, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1 });
+    this.validateField('message', bodyObj.message, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 10000 });
+    
+    if (bodyObj.limit !== undefined) {
+      this.validateField('limit', bodyObj.limit, [ValidationType.NUMBER, ValidationType.POSITIVE]);
     }
     
-    if (body.threshold !== undefined) {
-      this.validateField('threshold', body.threshold, [ValidationType.NUMBER]);
+    if (bodyObj.threshold !== undefined) {
+      this.validateField('threshold', bodyObj.threshold, [ValidationType.NUMBER]);
     }
   }
 
   /**
    * Validate query request
    */
-  static validateQueryRequest(body: any): void {
-    this.validateField('query', body.query, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 10000 });
+  static validateQueryRequest(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
     
-    if (body.limit !== undefined) {
-      this.validateField('limit', body.limit, [ValidationType.NUMBER, ValidationType.POSITIVE]);
+    this.validateField('query', bodyObj.query, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 10000 });
+    
+    if (bodyObj.limit !== undefined) {
+      this.validateField('limit', bodyObj.limit, [ValidationType.NUMBER, ValidationType.POSITIVE]);
     }
     
-    if (body.threshold !== undefined) {
-      this.validateField('threshold', body.threshold, [ValidationType.NUMBER]);
+    if (bodyObj.threshold !== undefined) {
+      this.validateField('threshold', bodyObj.threshold, [ValidationType.NUMBER]);
     }
   }
 
   /**
    * Validate document request
    */
-  static validateDocumentRequest(body: any): void {
-    this.validateField('title', body.title, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 500 });
-    this.validateField('content', body.content, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 100000 });
+  static validateDocumentRequest(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
     
-    if (body.metadata !== undefined) {
-      this.validateField('metadata', body.metadata, [ValidationType.OBJECT]);
+    this.validateField('title', bodyObj.title, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 500 });
+    this.validateField('content', bodyObj.content, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 100000 });
+    
+    if (bodyObj.metadata !== undefined) {
+      this.validateField('metadata', bodyObj.metadata, [ValidationType.OBJECT]);
     }
   }
 
   /**
    * Validate markdown ingestion request
    */
-  static validateMarkdownRequest(body: any): void {
-    this.validateField('content', body.content, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 100000 });
+  static validateMarkdownRequest(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
     
-    if (body.filename !== undefined) {
-      this.validateField('filename', body.filename, [ValidationType.STRING], { maxLength: 255 });
+    this.validateField('content', bodyObj.content, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1, maxLength: 100000 });
+    
+    if (bodyObj.filename !== undefined) {
+      this.validateField('filename', bodyObj.filename, [ValidationType.STRING], { maxLength: 255 });
     }
   }
 
@@ -169,17 +190,22 @@ export class Validator {
   /**
    * Validate user memory update
    */
-  static validateUserMemoryUpdate(body: any): void {
-    if (body.profileData !== undefined) {
-      this.validateField('profileData', body.profileData, [ValidationType.OBJECT]);
+  static validateUserMemoryUpdate(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
+    
+    if (bodyObj.profileData !== undefined) {
+      this.validateField('profileData', bodyObj.profileData, [ValidationType.OBJECT]);
     }
     
-    if (body.preferences !== undefined) {
-      this.validateField('preferences', body.preferences, [ValidationType.OBJECT]);
+    if (bodyObj.preferences !== undefined) {
+      this.validateField('preferences', bodyObj.preferences, [ValidationType.OBJECT]);
     }
     
     // At least one field should be provided
-    if (!body.profileData && !body.preferences) {
+    if (!bodyObj.profileData && !bodyObj.preferences) {
       throw new ValidationError('request', 'At least profileData or preferences must be provided');
     }
   }
@@ -206,7 +232,7 @@ export class Validator {
   /**
    * Check if value is empty
    */
-  private static isEmpty(value: any): boolean {
+  private static isEmpty(value: unknown): boolean {
     return value === null || 
            value === undefined || 
            value === '' || 
@@ -218,8 +244,8 @@ export class Validator {
 /**
  * Middleware for request validation
  */
-export const validateRequest = (validationFn: (body: any) => void) => {
-  return (req: any, res: any, next: any) => {
+export const validateRequest = (validationFn: (body: unknown) => void) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       validationFn(req.body);
       next();

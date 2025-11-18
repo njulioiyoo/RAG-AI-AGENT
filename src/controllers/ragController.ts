@@ -2,11 +2,13 @@ import { Request, Response } from 'express';
 import { Validator } from '../utils/validation.js';
 import { ErrorHandler } from '../utils/errors.js';
 import { MarkdownIngestionService } from '../services/ingestion/markdownIngestion.js';
+import type { MastraRAGService as MastraRAGServiceType } from '../services/mastra/mastraRAGService.js';
 
 // Dynamic import for Mastra to avoid ES module issues
-let MastraRAGService: any = null;
+type MastraRAGServiceClass = typeof import('../services/mastra/mastraRAGService.js').MastraRAGService;
+let MastraRAGService: MastraRAGServiceClass | null = null;
 
-async function loadMastraService() {
+async function loadMastraService(): Promise<void> {
   try {
     const module = await import('../services/mastra/mastraRAGService.js');
     MastraRAGService = module.MastraRAGService;
@@ -23,7 +25,7 @@ async function loadMastraService() {
  * Provides proper error handling and response formatting
  */
 export class RAGController {
-  private mastraService: any = null;
+  private mastraService: InstanceType<MastraRAGServiceClass> | null = null;
   private ingestionService: MarkdownIngestionService | null = null;
   private isInitialized = false;
 
@@ -45,6 +47,9 @@ export class RAGController {
       
       // Load Mastra service dynamically
       await loadMastraService();
+      if (!MastraRAGService) {
+        throw new Error('Failed to load MastraRAGService class');
+      }
       this.mastraService = new MastraRAGService();
       await this.mastraService.initialize();
       
@@ -82,7 +87,12 @@ export class RAGController {
       // Validate input
       Validator.validateQueryRequest(req.body);
       
-      const { query, limit, threshold } = req.body;
+      if (!this.mastraService) {
+        res.status(503).json({ error: 'Service not initialized' });
+        return;
+      }
+
+      const { query, limit, threshold } = req.body as { query: string; limit?: number; threshold?: number };
 
       const response = await this.mastraService.query(query, {
         limit: limit || 5,
@@ -118,7 +128,12 @@ export class RAGController {
     try {
       this.ensureInitialized();
       
-      const { title, content, metadata } = req.body;
+      if (!this.mastraService) {
+        res.status(503).json({ error: 'Service not initialized' });
+        return;
+      }
+
+      const { title, content, metadata } = req.body as { title: string; content: string; metadata?: Record<string, unknown> };
 
       if (!title || !content) {
         res.status(400).json({
@@ -127,7 +142,7 @@ export class RAGController {
         return;
       }
 
-      const result = await this.mastraService.addDocument(title, content, metadata);
+      const result = await this.mastraService.addDocument(title, content, metadata || {});
 
       res.status(201).json({
         message: 'Document added successfully via Mastra',
@@ -151,6 +166,11 @@ export class RAGController {
     try {
       this.ensureInitialized();
       
+      if (!this.mastraService) {
+        res.status(503).json({ error: 'Service not initialized' });
+        return;
+      }
+
       const stats = await this.mastraService.getStats();
       res.json(stats);
     } catch (error) {
@@ -169,7 +189,7 @@ export class RAGController {
   async health(req: Request, res: Response): Promise<void> {
     try {
       // Health check should work even if not fully initialized
-      if (this.isInitialized) {
+      if (this.isInitialized && this.mastraService) {
         const stats = await this.mastraService.getStats();
         res.json({
           status: 'healthy',
@@ -218,7 +238,18 @@ export class RAGController {
       // Validate input
       Validator.validateChatRequest(req.body);
       
-      const { userId, sessionId, message, limit, threshold } = req.body;
+      if (!this.mastraService) {
+        res.status(503).json({ error: 'Service not initialized' });
+        return;
+      }
+
+      const { userId, sessionId, message, limit, threshold } = req.body as { 
+        userId: string; 
+        sessionId: string; 
+        message: string; 
+        limit?: number; 
+        threshold?: number 
+      };
 
       // Sanitize inputs
       const sanitizedMessage = Validator.sanitizeString(message);
@@ -384,7 +415,9 @@ export class RAGController {
   async shutdown(): Promise<void> {
     try {
       if (this.isInitialized) {
-        await this.mastraService.shutdown();
+        if (this.mastraService) {
+          await this.mastraService.shutdown();
+        }
         if (this.ingestionService) {
           await this.ingestionService.close();
         }

@@ -138,7 +138,7 @@ export class MastraAgent {
 
     const recentHistory = userMemory.conversations
       .slice(-SERVICE_CONSTANTS.MAX_HISTORY_TURNS)
-      .map((turn: any) => `User: ${turn.user_message}\nAssistant: ${turn.assistant_response}`)
+      .map((turn) => `User: ${turn.user_message}\nAssistant: ${turn.assistant_response}`)
       .join('\n\n');
 
     return `\nConversation History:\n${recentHistory}\n`;
@@ -177,7 +177,7 @@ export class MastraAgent {
    * Extract text from agent response - handles multiple response formats
    * @private
    */
-  private extractTextFromResponse(response: any): string {
+  private extractTextFromResponse(response: unknown): string {
     // Handle string response
     if (typeof response === 'string') {
       return response;
@@ -189,24 +189,26 @@ export class MastraAgent {
       return 'I apologize, but I was unable to generate a response.';
     }
 
+    const agentResponse = response as Record<string, unknown>;
+
     // Mastra Agent format: response.text contains the generated text
-    if ('text' in response && typeof response.text === 'string') {
-      return response.text;
+    if ('text' in agentResponse && typeof agentResponse.text === 'string') {
+      return agentResponse.text;
     }
 
     // Try common response formats
-    if ('content' in response && typeof response.content === 'string') {
-      return response.content;
+    if ('content' in agentResponse && typeof agentResponse.content === 'string') {
+      return agentResponse.content;
     }
 
     // Handle message format
-    if ('message' in response && response.message) {
-      return this.extractTextFromMessage(response.message);
+    if ('message' in agentResponse && agentResponse.message) {
+      return this.extractTextFromMessage(agentResponse.message);
     }
 
     // Handle choices array format
-    if ('choices' in response && Array.isArray(response.choices) && response.choices.length > 0) {
-      return this.extractTextFromChoice(response.choices[0]);
+    if ('choices' in agentResponse && Array.isArray(agentResponse.choices) && agentResponse.choices.length > 0) {
+      return this.extractTextFromChoice(agentResponse.choices[0]);
     }
 
     // Try to find text in nested structures
@@ -217,12 +219,12 @@ export class MastraAgent {
    * Extract text from message object
    * @private
    */
-  private extractTextFromMessage(message: any): string {
+  private extractTextFromMessage(message: unknown): string {
     if (typeof message === 'string') {
       return message;
     }
-    if (message && typeof message === 'object' && 'content' in message) {
-      return String(message.content);
+    if (message && typeof message === 'object' && message !== null && 'content' in message) {
+      return String((message as { content: unknown }).content);
     }
     return String(message);
   }
@@ -231,12 +233,15 @@ export class MastraAgent {
    * Extract text from choice object
    * @private
    */
-  private extractTextFromChoice(choice: any): string {
-    if (choice && 'text' in choice) {
-      return String(choice.text);
-    }
-    if (choice && 'message' in choice && choice.message) {
-      return this.extractTextFromMessage(choice.message);
+  private extractTextFromChoice(choice: unknown): string {
+    if (choice && typeof choice === 'object' && choice !== null) {
+      const choiceObj = choice as { text?: unknown; message?: unknown };
+      if ('text' in choiceObj) {
+        return String(choiceObj.text);
+      }
+      if ('message' in choiceObj && choiceObj.message) {
+        return this.extractTextFromMessage(choiceObj.message);
+      }
     }
     return String(choice);
   }
@@ -245,7 +250,7 @@ export class MastraAgent {
    * Recursively search for text in nested structures
    * @private
    */
-  private extractTextFromNestedStructure(response: any): string {
+  private extractTextFromNestedStructure(response: unknown): string {
     const responseStr = JSON.stringify(response);
     
     // Check if response might contain text/content/message
@@ -255,7 +260,7 @@ export class MastraAgent {
     }
 
     try {
-      const parsed = JSON.parse(responseStr);
+      const parsed: unknown = JSON.parse(responseStr);
       const foundText = this.findTextRecursively(parsed);
       
       if (foundText) {
@@ -273,7 +278,7 @@ export class MastraAgent {
    * Recursively find text in object structure
    * @private
    */
-  private findTextRecursively(obj: any): string | null {
+  private findTextRecursively(obj: unknown): string | null {
     if (typeof obj === 'string' && obj.length > 10) {
       return obj;
     }
@@ -294,10 +299,14 @@ export class MastraAgent {
     }
 
     // Recursively search all properties
-    for (const key in obj) {
-      const result = this.findTextRecursively(obj[key]);
-      if (result) {
-        return result;
+    if (typeof obj === 'object' && obj !== null) {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const result = this.findTextRecursively((obj as Record<string, unknown>)[key]);
+          if (result) {
+            return result;
+          }
+        }
       }
     }
 
