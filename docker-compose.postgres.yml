@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rag_ai_agent
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - rag-network
+
+  rag-ai-agent:
+    build: .
+    container_name: rag-ai-agent
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/rag_ai_agent
+      - OPENAI_API_KEY=mock_openai_api_key
+      - GEMINI_API_KEY=mock_gemini_api_key
+      - PORT=3000
+      - VECTOR_DIMENSION=1536
+      - SIMILARITY_THRESHOLD=0.8
+    depends_on:
+      - postgres
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  rag-network:
+    driver: bridge

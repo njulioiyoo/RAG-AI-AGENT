@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  rag-ai-agent:
+    build: .
+    container_name: rag-ai-agent
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PORT=3000
+      - VECTOR_DIMENSION=768
+      - SIMILARITY_THRESHOLD=0.8
+    networks:
+      - postgres-network
+    restart: unless-stopped
+
+networks:
+  postgres-network:
+    external: true
+    name: pgsql_postgres-network
+
+# Note: PostgreSQL service sudah ada di postgres master
+# Service ini akan connect ke existing PostgreSQL container

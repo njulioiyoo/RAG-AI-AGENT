@@ -1,0 +1,482 @@
+{
+	"info": {
+		"_postman_id": "rag-ai-agent-collection",
+		"name": "RAG AI Agent API",
+		"description": "Complete API collection for RAG AI Agent with Mastra framework, Gemini AI, and PostgreSQL vector search",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "rag-ai-agent"
+	},
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health"
+							]
+						},
+						"description": "Check service health and status"
+					}
+				},
+				{
+					"name": "Get Knowledge Base Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"stats"
+							]
+						},
+						"description": "Get statistics about the knowledge base"
+					}
+				},
+				{
+					"name": "API Documentation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/docs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"docs"
+							]
+						},
+						"description": "Get API documentation and available endpoints"
+					}
+				}
+			],
+			"description": "Health check and status endpoints"
+		},
+		{
+			"name": "Chat & Query",
+			"item": [
+				{
+					"name": "Chat with Memory",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user123\",\n  \"sessionId\": \"session456\",\n  \"message\": \"What is PostgreSQL and how do I use it?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Chat with AI agent using user-specific memory and conversation history"
+					}
+				},
+				{
+					"name": "Chat Follow-up Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user123\",\n  \"sessionId\": \"session456\",\n  \"message\": \"What did we discuss about databases earlier?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Test memory functionality with follow-up questions"
+					}
+				},
+				{
+					"name": "Simple RAG Query (No Memory)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"What is machine learning?\",\n  \"limit\": 5,\n  \"threshold\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/query",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"query"
+							]
+						},
+						"description": "Simple RAG query without memory context"
+					}
+				}
+			],
+			"description": "Chat and query endpoints with memory support"
+		},
+		{
+			"name": "Document Management",
+			"item": [
+				{
+					"name": "Add Single Document",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Docker Best Practices\",\n  \"content\": \"Docker is a containerization platform that allows you to package applications with their dependencies. Best practices include using multi-stage builds, keeping images small, and properly handling secrets.\",\n  \"metadata\": {\n    \"category\": \"DevOps\",\n    \"tags\": [\"docker\", \"containerization\", \"deployment\"],\n    \"author\": \"DevOps Team\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/documents",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"documents"
+							]
+						},
+						"description": "Add a single document to the knowledge base"
+					}
+				},
+				{
+					"name": "Ingest Markdown Content",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"# React Development Guide\\n\\nReact is a popular JavaScript library for building user interfaces.\\n\\n## Key Concepts\\n\\n### Components\\nComponents are the building blocks of React applications. They can be function components or class components.\\n\\n### State Management\\nState can be managed using:\\n- useState hook for local state\\n- useReducer for complex state logic\\n- Context API for global state\\n- External libraries like Redux\\n\\n### Lifecycle Methods\\nFunction components use hooks like useEffect to handle lifecycle events.\\n\\n## Best Practices\\n\\n1. Keep components small and focused\\n2. Use meaningful component names\\n3. Prefer function components over class components\\n4. Use TypeScript for better type safety\",\n  \"filename\": \"react-guide.md\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/ingest/markdown",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ingest",
+								"markdown"
+							]
+						},
+						"description": "Ingest markdown content with automatic chunking and metadata extraction"
+					}
+				},
+				{
+					"name": "Ingest Markdown File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"filePath\": \"/app/docs/sample.md\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/ingest/file",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ingest",
+								"file"
+							]
+						},
+						"description": "Ingest markdown file from filesystem path"
+					}
+				}
+			],
+			"description": "Document ingestion and management endpoints"
+		},
+		{
+			"name": "User Memory Management",
+			"item": [
+				{
+					"name": "Get User Memory",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}/memory",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}",
+								"memory"
+							]
+						},
+						"description": "Get user memory profile and preferences"
+					}
+				},
+				{
+					"name": "Update User Memory - Developer Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileData\": {\n    \"role\": \"senior developer\",\n    \"experience\": \"5+ years\",\n    \"interests\": [\"backend development\", \"databases\", \"microservices\", \"DevOps\"],\n    \"skills\": [\"Node.js\", \"PostgreSQL\", \"Docker\", \"TypeScript\"],\n    \"currentProject\": \"RAG AI Agent implementation\"\n  },\n  \"preferences\": {\n    \"responseStyle\": \"technical and detailed\",\n    \"includeCodeExamples\": true,\n    \"preferredLanguage\": \"English\",\n    \"includeReferences\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}/memory",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}",
+								"memory"
+							]
+						},
+						"description": "Update user profile with developer information and preferences"
+					}
+				},
+				{
+					"name": "Update User Memory - Beginner Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileData\": {\n    \"role\": \"student\",\n    \"experience\": \"beginner\",\n    \"interests\": [\"web development\", \"programming basics\"],\n    \"learningGoals\": [\"JavaScript\", \"React\", \"databases\"]\n  },\n  \"preferences\": {\n    \"responseStyle\": \"simple and beginner-friendly\",\n    \"includeCodeExamples\": true,\n    \"explainConcepts\": true,\n    \"preferredLanguage\": \"English\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/beginner123/memory",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"beginner123",
+								"memory"
+							]
+						},
+						"description": "Update user profile for beginner learning preferences"
+					}
+				}
+			],
+			"description": "User memory and preference management"
+		},
+		{
+			"name": "Test Scenarios",
+			"item": [
+				{
+					"name": "Scenario 1: New User Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"newuser789\",\n  \"sessionId\": \"session001\",\n  \"message\": \"I'm learning web development. Can you explain what React is?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Test conversation with new user"
+					}
+				},
+				{
+					"name": "Scenario 2: Follow-up Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"newuser789\",\n  \"sessionId\": \"session001\",\n  \"message\": \"What about the best practices you mentioned?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Test memory recall with follow-up question"
+					}
+				},
+				{
+					"name": "Scenario 3: Cross-session Memory",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"newuser789\",\n  \"sessionId\": \"session002\",\n  \"message\": \"I want to learn more about databases. What should I start with?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Test memory across different sessions"
+					}
+				},
+				{
+					"name": "Scenario 4: Technical Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user123\",\n  \"sessionId\": \"session456\",\n  \"message\": \"How do I optimize PostgreSQL performance for large datasets?\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chat"
+							]
+						},
+						"description": "Test technical query with experienced developer profile"
+					}
+				}
+			],
+			"description": "Common usage scenarios and test cases"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "user123",
+			"type": "string"
+		},
+		{
+			"key": "sessionId",
+			"value": "session456",
+			"type": "string"
+		}
+	]
+}
