@@ -1,6 +1,6 @@
 # Mastra RAG AI Agent - Employee Handbook Assistant
 
-🚀 **Complete Mastra-powered Retrieval-Augmented Generation (RAG) AI Agent** dengan **Advanced Markdown Ingestion Pipeline** untuk Employee Handbook dan HR assistance dengan conversational memory dan vector search capabilities.
+🚀 **Complete Mastra-powered Retrieval-Augmented Generation (RAG) AI Agent** with **Advanced Markdown Ingestion Pipeline** for Employee Handbook and HR assistance with conversational memory and vector search capabilities.
 
 ## ✨ Key Features - 100% Mastra Framework
 
@@ -8,24 +8,25 @@
 - **Framework**: Mastra AI Framework (`@mastra/core` + `@mastra/rag`)
 - **LLM**: Google Gemini 2.5 Flash via Mastra Agent
 - **Embeddings**: Google `text-embedding-004` via Mastra
-- **Database**: PostgreSQL + pgvector untuk vector similarity search
-- **Memory**: Conversation history dan user preferences dengan Mastra patterns
-- **Document Processing**: MDocument dari `@mastra/rag` untuk chunking
+- **Database**: PostgreSQL + pgvector for vector similarity search
+- **Memory**: Conversation history and user preferences with Mastra patterns
+- **Document Processing**: MDocument from `@mastra/rag` for chunking
 
 ### 🎯 **Advanced Capabilities**
-1. **📥 Markdown Ingestion Pipeline** - Automatic parsing, intelligent chunking, dan embedding generation
-2. **🔍 Semantic Vector Search** - Mencari informasi relevan dengan similarity search
-3. **💭 Conversational Memory** - Mengingat context percakapan dan user preferences  
-4. **🤝 Context-Aware Responses** - Menggabungkan document retrieval dengan conversation history
-5. **📄 Document Management** - Upload, processing, dan chunking dokumen HR policies
-6. **🎯 Professional HR Assistant** - Specialized agent untuk employee handbook queries
-7. **🌐 Multilingual Support** - Auto-detect bahasa query dan response dalam bahasa yang sama, dengan intelligent fallback untuk cross-language search
+1. **📥 Markdown Ingestion Pipeline** - Automatic parsing, intelligent chunking, and embedding generation
+2. **🔍 Semantic Vector Search** - Find relevant information with similarity search
+3. **💭 Conversational Memory** - Remember conversation context and user preferences  
+4. **🤝 Context-Aware Responses** - Combine document retrieval with conversation history
+5. **📄 Document Management** - Upload, processing, and chunking of HR policy documents
+6. **🎯 Professional HR Assistant** - Specialized agent for employee handbook queries
+7. **🌐 Multilingual Support** - Auto-detect query language and respond in the same language, with intelligent fallback for cross-language search
 
+### Requirements
 - Node.js 20+
-- PostgreSQL dengan pgvector extension
+- PostgreSQL with pgvector extension
 - Google AI API Key (Gemini)
 
-### Installation
+## 📦 Installation
 
 ```bash
 # Clone repository
@@ -37,7 +38,7 @@ npm install
 
 # Setup environment variables
 cp .env.example .env
-# Edit .env dengan database dan API key configuration
+# Edit .env with database and API key configuration
 
 # Setup database
 npm run db:setup
@@ -70,7 +71,7 @@ NODE_ENV=development
 ### Core Endpoints (100% Mastra)
 
 #### **GET** `/api/health`
-Mastra service health check dan status
+Mastra service health check and status
 ```json
 {
   "status": "healthy",
@@ -81,7 +82,7 @@ Mastra service health check dan status
 ```
 
 #### **POST** `/api/query`
-Simple RAG query menggunakan Mastra Agent dengan dukungan multibahasa
+Simple RAG query using Mastra Agent with multilingual support
 ```json
 {
   "query": "How many annual leave days am I entitled to?",
@@ -91,13 +92,13 @@ Simple RAG query menggunakan Mastra Agent dengan dukungan multibahasa
 ```
 
 **Multilingual Support:**
-- Query dalam bahasa apapun (Indonesia, English, dll) akan otomatis terdeteksi
-- Response akan diberikan dalam bahasa yang sama dengan query
-- Jika dokumen dalam bahasa berbeda, agent akan menerjemahkan dan mengadaptasi informasi
-- Vector search dengan intelligent fallback untuk cross-language matching
+- Queries in any language (Indonesian, English, etc.) are automatically detected
+- Responses are provided in the same language as the query
+- If documents are in a different language, the agent will translate and adapt the information
+- Vector search with intelligent fallback for cross-language matching
 
 #### **POST** `/api/chat`
-Conversational chat dengan memory (Mastra-powered) dan dukungan multibahasa
+Conversational chat with memory (Mastra-powered) and multilingual support
 ```json
 {
   "userId": "emp-001",
@@ -109,14 +110,14 @@ Conversational chat dengan memory (Mastra-powered) dan dukungan multibahasa
 ```
 
 **Multilingual Chat:**
-- Mendukung percakapan dalam berbagai bahasa
-- Agent akan merespons dalam bahasa yang sama dengan pesan user
-- Conversation history dipertahankan dalam bahasa asli
+- Supports conversations in multiple languages
+- Agent responds in the same language as the user's message
+- Conversation history is maintained in the original language
 
 ### 📥 Advanced Markdown Ingestion Pipeline
 
 #### **POST** `/api/documents/ingest-markdown`
-**Automatic markdown parsing, chunking, dan embedding generation**
+**Automatic markdown parsing, chunking, and embedding generation**
 ```json
 {
   "content": "# Employee Handbook\\n\\n## Leave Policy\\n* Annual leave: 12 days...",
@@ -140,7 +141,7 @@ Conversational chat dengan memory (Mastra-powered) dan dukungan multibahasa
 
 ### 1. Simple Query (Multilingual)
 ```bash
-# Query dalam Bahasa Indonesia
+# Query in Indonesian
 curl -X POST http://localhost:3001/api/query \
   -H "Content-Type: application/json" \
   -d '{
@@ -149,7 +150,7 @@ curl -X POST http://localhost:3001/api/query \
     "threshold": 0.4
   }'
 
-# Query dalam English (akan otomatis menemukan dokumen Indonesia)
+# Query in English (will automatically find Indonesian documents)
 curl -X POST http://localhost:3001/api/query \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,7 +162,7 @@ curl -X POST http://localhost:3001/api/query \
 
 ### 2. Chat with Memory (Multilingual)
 ```bash
-# Chat dalam Bahasa Indonesia
+# Chat in Indonesian
 curl -X POST http://localhost:3001/api/chat \
   -H "Content-Type: application/json" \
   -d '{
@@ -171,7 +172,7 @@ curl -X POST http://localhost:3001/api/chat \
     "limit": 5
   }'
 
-# Chat dalam English
+# Chat in English
 curl -X POST http://localhost:3001/api/chat \
   -H "Content-Type: application/json" \
   -d '{
@@ -193,30 +194,30 @@ curl -X POST http://localhost:3001/api/documents/ingest-markdown \
   }'
 ```
 
-## 🧪 Testing dengan Postman
+## 🧪 Testing with Postman
 
-Import collection yang tersedia: `Employee_Handbook_RAG.postman_collection.json`
+Import the available collection: `Employee_Handbook_RAG.postman_collection.json`
 
 ### Collection Features:
-- **System Health & Stats** - Health checks dan Mastra statistics
-- **📥 Markdown Ingestion Pipeline** - Auto-chunking dan embedding generation
-- **Mastra Document Management** - Add dokumen HR policies
-- **Mastra RAG Queries** - Simple queries tanpa memory
-- **Mastra Conversational Chat** - Chat dengan context dan memory
-- **Test Examples** - Test cases untuk berbagai scenarios
+- **System Health & Stats** - Health checks and Mastra statistics
+- **📥 Markdown Ingestion Pipeline** - Auto-chunking and embedding generation
+- **Mastra Document Management** - Add HR policy documents
+- **Mastra RAG Queries** - Simple queries without memory
+- **Mastra Conversational Chat** - Chat with context and memory
+- **Test Examples** - Test cases for various scenarios
 
 ### Variables:
 - `baseUrl`: `http://localhost:3001`
 - `employeeId`: `emp-001` (test user)
 
-## 🚨 Migration dari Custom Services
+## 🚨 Migration from Custom Services
 
-Project ini telah **100% dimigrasi ke Mastra framework**, menggantikan semua custom services:
+This project has been **100% migrated to Mastra framework**, replacing all custom services:
 
 ### ✅ Completed
 - ~~`src/services/ragAgent.ts`~~ → `MastraRAGService`
 - ~~`src/services/vectorSearch.ts`~~ → Mastra vector search
-- ~~`src/services/llm.ts`~~ → Mastra Agent dengan Gemini
+- ~~`src/services/llm.ts`~~ → Mastra Agent with Gemini
 - ~~`src/services/userMemory.ts`~~ → Mastra Memory management
 - ~~`src/services/documentIngestion.ts`~~ → MDocument processing
 
@@ -236,41 +237,41 @@ Project ini telah **100% dimigrasi ke Mastra framework**, menggantikan semua cus
 - **Similarity Threshold**: 0.3 (default)
 
 ### Multilingual Features
-- **Auto Language Detection**: Otomatis mendeteksi bahasa dari query user
-- **Response Language Matching**: Response dalam bahasa yang sama dengan query
-- **Cross-Language Search**: Intelligent fallback untuk mencari dokumen dalam bahasa berbeda
+- **Auto Language Detection**: Automatically detects language from user query
+- **Response Language Matching**: Response in the same language as the query
+- **Cross-Language Search**: Intelligent fallback for searching documents in different languages
   - Progressive threshold fallback (0.3 → 0.15 → 0.05 → 0.01 → 0)
-  - Query translation fallback (English → Indonesian, dll)
-- **Supported Languages**: Indonesian, English, dan bahasa lain yang didukung Gemini
+  - Query translation fallback (English → Indonesian, etc.)
+- **Supported Languages**: Indonesian, English, and other languages supported by Gemini
 
 ### Performance Settings
 - **DB Connections**: 20 max (shared pool via Database singleton)
 - **Request Timeout**: 30s
-- **Vector Index**: ivfflat dengan cosine distance
+- **Vector Index**: ivfflat with cosine distance
 - **Memory Limit**: 10 recent conversations per session
-- **Multilingual Search**: Automatic threshold adjustment untuk cross-language matching
+- **Multilingual Search**: Automatic threshold adjustment for cross-language matching
 
 ## 🌐 Multilingual Support
 
 ### How It Works
 
 1. **Auto Language Detection**
-   - Agent secara otomatis mendeteksi bahasa dari query user
-   - Tidak perlu konfigurasi tambahan
+   - Agent automatically detects the language from the user's query
+   - No additional configuration required
 
 2. **Response in User's Language**
-   - Agent akan merespons dalam bahasa yang sama dengan query
-   - Contoh: Query Indonesia → Response Indonesia, Query English → Response English
+   - Agent responds in the same language as the query
+   - Example: Indonesian Query → Indonesian Response, English Query → English Response
 
 3. **Cross-Language Document Search**
-   - Jika dokumen dalam bahasa berbeda dengan query, sistem akan:
-     - Mencoba dengan threshold yang lebih rendah secara progresif
-     - Menerjemahkan query ke bahasa dokumen jika diperlukan
-     - Tetap memberikan response dalam bahasa query user
+   - If documents are in a different language than the query, the system will:
+     - Try progressively lower thresholds
+     - Translate the query to the document's language if needed
+     - Still provide the response in the query user's language
 
 4. **Intelligent Fallback Strategy**
    ```
-   Query (English) → Dokumen (Indonesian)
+   Query (English) → Documents (Indonesian)
    ├─ Try threshold 0.3 → No results
    ├─ Try threshold 0.15 → No results  
    ├─ Try threshold 0.05 → No results
