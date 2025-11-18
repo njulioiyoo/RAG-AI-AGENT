@@ -21,6 +21,8 @@ import {
 import { VectorOperations } from './database/vectorOperations.js';
 import { MastraAgent } from './agent/mastraAgent.js';
 import { UserMemoryManager } from './memory/userMemory.js';
+import { createDocumentSearchTool } from './tools/documentSearchTool.js';
+import { createUserPreferencesTool, createUpdateUserPreferencesTool } from './tools/userPreferencesTool.js';
 
 /**
  * Clean, modular Mastra RAG Service
@@ -64,8 +66,11 @@ export class MastraRAGService {
       // Test connections
       await this.vectorOps.testConnection();
       
-      // Setup agent
-      await this.agent.setup();
+      // Create tools for the agent
+      const tools = this.createAgentTools();
+      
+      // Setup agent with tools
+      await this.agent.setup(tools);
 
       this.isInitialized = true;
       console.log('🤖 Mastra RAG Service fully initialized');
@@ -274,6 +279,49 @@ export class MastraRAGService {
     // Use shared database pool from Database singleton
     const database = Database.getInstance();
     this.dbPool = database.getPool();
+  }
+
+  /**
+   * Create tools for Mastra Agent
+   * @private
+   */
+  private createAgentTools() {
+    const tools = [];
+
+    // Document search tool
+    if (this.vectorOps) {
+      tools.push(
+        createDocumentSearchTool(
+          (query: string, options?: { limit?: number; threshold?: number }) => {
+            return this.vectorOps!.vectorSearch(query, options || {});
+          }
+        )
+      );
+    }
+
+    // User preferences tools
+    if (this.memoryManager) {
+      tools.push(
+        createUserPreferencesTool(
+          (userId: string, sessionId: string) => {
+            return this.memoryManager!.getUserMemory(userId, sessionId);
+          },
+          (userId: string, preferences: Record<string, unknown>) => {
+            return this.memoryManager!.updateUserPreferences(userId, preferences);
+          }
+        )
+      );
+
+      tools.push(
+        createUpdateUserPreferencesTool(
+          (userId: string, preferences: Record<string, unknown>) => {
+            return this.memoryManager!.updateUserPreferences(userId, preferences);
+          }
+        )
+      );
+    }
+
+    return tools;
   }
 
   /**
