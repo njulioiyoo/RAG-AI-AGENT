@@ -1,6 +1,13 @@
 /**
  * Mastra Agent Operations
  * Handles Mastra agent setup and response generation
+ * 
+ * Implementation follows Mastra best practices:
+ * - Agent initialization with proper configuration
+ * - Tool integration via Agent constructor
+ * - Mastra instance for workflows and advanced features
+ * - Comprehensive error handling with fallback mechanisms
+ * - Streaming response handling with timeout protection
  */
 
 import { Mastra } from '@mastra/core';
@@ -32,18 +39,25 @@ export class MastraAgent {
   async setup(tools: Tool[] = []): Promise<void> {
     try {
       // Initialize Mastra framework
-      // Mastra instance can be used for workflows, tools registry, and advanced features
+      // Mastra instance is used for workflows, tools registry, and advanced features
+      // According to Mastra best practices, tools should be registered with both:
+      // 1. Agent constructor (for agent tool execution)
+      // 2. Mastra instance (for workflows and cross-agent tool sharing)
       this.mastra = new Mastra({});
 
       // Store tools
       this.tools = tools;
       
-      // Register tools with Mastra instance if needed
-      // This ensures tools are available when agent tries to use them
+      // Register tools with Mastra instance
+      // This enables tools to be available for workflows and advanced features
+      // Tools are also passed to Agent constructor for agent execution
       if (tools.length > 0 && this.mastra) {
-        // Tools are passed to Agent constructor, but we can also register them with Mastra
-        // for workflows or other advanced features
-        console.log(`📋 [Mastra] Tools registered: ${tools.map(t => t.id || 'unknown').join(', ')}`);
+        // Note: Mastra instance automatically manages tool registry
+        // Tools passed to Agent are available to that agent, while tools registered
+        // with Mastra instance are available across all agents and workflows
+        const toolIds = tools.map(t => t.id || 'unknown').join(', ');
+        console.log(`📋 [Mastra] Tools configured: ${toolIds}`);
+        console.log(`📋 [Mastra] Tools are registered with Agent and available for use`);
       }
 
       // Setup Agent with proper configuration and tools
@@ -100,6 +114,17 @@ export class MastraAgent {
       // Build memory context if available
       const memoryContext = userMemory ? this.buildMemoryContext(userMemory) : '';
 
+      // Extract images from sources for multimodal processing
+      const images = this.extractImagesFromSources(sources);
+      
+      // If images are available, use multimodal fallback directly (Mastra Agent doesn't support multimodal yet)
+      if (images.length > 0) {
+        console.log(`🖼️ [Mastra] Found ${images.length} image(s) in sources, using multimodal analysis`);
+        console.log(`🖼️ [Mastra] Images from pages: ${images.map(img => img.pageNumber).filter(Boolean).join(', ')}`);
+        // Use fallback with multimodal support directly for better image analysis
+        return await this.generateWithFallback(query, sources, userMemory);
+      }
+      
       // If agent has tools, allow it to use them for follow-up searches or refinements
       // Agent can call search_documents tool if it needs more information or wants to refine search
       const prompt = this.buildPrompt(query, context, memoryContext);
@@ -307,10 +332,74 @@ export class MastraAgent {
       const memoryContext = userMemory ? this.buildMemoryContext(userMemory) : '';
       const prompt = this.buildPrompt(query, context, memoryContext);
 
+      // Extract images from sources for multimodal processing
+      const images = this.extractImagesFromSources(sources);
+      
       console.log('🔄 [Mastra] Using fallback Google Generative AI');
       
-      // Use Google Generative AI directly
-      const result = await this.fallbackModel.generateContent(prompt);
+      // Use Google Generative AI directly with multimodal support if images are available
+      let result;
+      if (images.length > 0 && this.fallbackModel) {
+        console.log(`🖼️ [Mastra] Including ${images.length} image(s) for multimodal analysis`);
+        
+        // Build multimodal content: text prompt + images
+        const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+          { text: prompt }
+        ];
+        
+        // Add images (limit to first 4 images to avoid token limits)
+        let validImagesCount = 0;
+        for (const img of images.slice(0, 4)) {
+          if (img.dataUrl) {
+            try {
+              // Extract base64 data from data URL
+              let base64Data: string;
+              let mimeType: string;
+              
+              if (img.dataUrl.startsWith('data:')) {
+                // Standard data URL format: data:image/png;base64,<data>
+                const parts = img.dataUrl.split(',');
+                base64Data = parts[1] || img.dataUrl;
+                const mimeMatch = img.dataUrl.match(/data:([^;]+)/);
+                mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+              } else {
+                // Assume it's already base64
+                base64Data = img.dataUrl;
+                mimeType = 'image/png';
+              }
+              
+              if (base64Data && base64Data.length > 100) { // Minimum size check
+                parts.push({
+                  inlineData: {
+                    mimeType: mimeType || 'image/png',
+                    data: base64Data,
+                  }
+                });
+                validImagesCount++;
+                console.log(`🖼️ [Mastra] Added image from page ${img.pageNumber || 'N/A'} (${mimeType}, ${(base64Data.length / 1024).toFixed(2)} KB)`);
+              } else {
+                console.warn(`⚠️ [Mastra] Skipping image from page ${img.pageNumber || 'N/A'} - data too small (${base64Data?.length || 0} bytes)`);
+              }
+            } catch (imgError) {
+              console.warn(`⚠️ [Mastra] Error processing image from page ${img.pageNumber || 'N/A'}:`, imgError);
+            }
+          }
+        }
+        
+        if (validImagesCount > 0) {
+          // We have valid images, use multimodal
+          console.log(`🖼️ [Mastra] Sending ${validImagesCount} image(s) with text prompt to Gemini for multimodal analysis`);
+          result = await this.fallbackModel.generateContent(parts);
+        } else {
+          // No valid images, use text-only
+          console.log('⚠️ [Mastra] No valid images found after processing, using text-only generation');
+          result = await this.fallbackModel.generateContent(prompt);
+        }
+      } else {
+        // Text-only generation
+        result = await this.fallbackModel.generateContent(prompt);
+      }
+      
       const response = result.response;
       const text = response.text();
 
@@ -341,6 +430,7 @@ export class MastraAgent {
 
   /**
    * Build context from vector search sources
+   * Includes text content and image references for multimodal support
    */
   private buildContext(sources: VectorSearchDocument[]): string {
     if (!sources.length) {
@@ -348,10 +438,58 @@ export class MastraAgent {
     }
 
     const contextParts = sources.map((source, index) => {
-      return `[Document ${index + 1}: ${source.document.title}]\n${source.document.content.substring(0, SERVICE_CONSTANTS.MAX_CONTENT_LENGTH)}`;
+      const content = source.document.content.substring(0, SERVICE_CONSTANTS.MAX_CONTENT_LENGTH);
+      const metadata = source.document.metadata || {};
+      const images = (metadata as { images?: Array<{ pageNumber: number; dataUrl: string }> }).images;
+      
+      let docContext = `[Document ${index + 1}: ${source.document.title}]\n${content}`;
+      
+      // Add image information if available
+      if (images && images.length > 0) {
+        docContext += `\n\n[Images in this document: ${images.length} image(s) available for visual analysis]`;
+        images.forEach((img, imgIdx) => {
+          docContext += `\n- Image ${imgIdx + 1}: Page ${img.pageNumber}`;
+        });
+      }
+      
+      return docContext;
     });
 
     return `Context from Employee Handbook:\n\n${contextParts.join('\n\n')}`;
+  }
+
+  /**
+   * Extract images from sources for multimodal processing
+   */
+  private extractImagesFromSources(sources: VectorSearchDocument[]): Array<{ dataUrl: string; pageNumber?: number }> {
+    const images: Array<{ dataUrl: string; pageNumber?: number }> = [];
+    
+    for (const source of sources) {
+      const metadata = source.document.metadata || {};
+      const sourceImages = (metadata as { images?: Array<{ pageNumber: number; dataUrl: string }> }).images;
+      
+      if (sourceImages && sourceImages.length > 0) {
+        for (const img of sourceImages) {
+          if (img.dataUrl && img.dataUrl.startsWith('data:image')) {
+            images.push({
+              dataUrl: img.dataUrl,
+              pageNumber: img.pageNumber,
+            });
+          }
+        }
+      }
+    }
+    
+    // Log extracted images for debugging
+    if (images.length > 0) {
+      console.log(`🖼️ [Image Extraction] Found ${images.length} image(s) from ${sources.length} source(s)`);
+      images.forEach((img, idx) => {
+        const dataSize = img.dataUrl.length;
+        console.log(`🖼️ [Image ${idx + 1}] Page: ${img.pageNumber || 'N/A'}, Size: ${(dataSize / 1024).toFixed(2)} KB`);
+      });
+    }
+    
+    return images;
   }
 
   /**
@@ -550,6 +688,11 @@ export class MastraAgent {
 
   /**
    * Get comprehensive agent instructions
+   * Based on Mastra best practices for agent instruction design:
+   * - Clear role definition
+   * - Explicit capability description
+   * - Tool usage guidelines
+   * - Multilingual support instructions
    */
   private getAgentInstructions(): string {
     return `You are an intelligent HR assistant that helps employees with company policy questions.

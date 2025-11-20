@@ -168,7 +168,23 @@ export class Validator {
   }
 
   /**
-   * Validate file path
+   * Validate PDF ingestion request
+   */
+  static validatePdfRequest(body: unknown): void {
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('body', 'Request body must be an object');
+    }
+    const bodyObj = body as Record<string, unknown>;
+    
+    this.validateField('pdfData', bodyObj.pdfData, [ValidationType.REQUIRED, ValidationType.STRING], { minLength: 1 });
+    
+    if (bodyObj.filename !== undefined) {
+      this.validateField('filename', bodyObj.filename, [ValidationType.STRING], { maxLength: 255 });
+    }
+  }
+
+  /**
+   * Validate file path (supports markdown and PDF)
    */
   static validateFilePath(filePath: string): void {
     this.validateField('filePath', filePath, [ValidationType.REQUIRED, ValidationType.STRING]);
@@ -181,9 +197,37 @@ export class Validator {
       }
     }
     
-    // Ensure it's a markdown file
-    if (!filePath.endsWith('.md')) {
-      throw new ValidationError('filePath', 'File must be a Markdown file (.md)');
+    // Ensure it's a supported file type (markdown or PDF)
+    const supportedExtensions = ['.md', '.markdown', '.pdf'];
+    const hasSupportedExtension = supportedExtensions.some(ext => 
+      filePath.toLowerCase().endsWith(ext)
+    );
+    
+    if (!hasSupportedExtension) {
+      throw new ValidationError(
+        'filePath', 
+        `File must be one of the supported formats: ${supportedExtensions.join(', ')}`
+      );
+    }
+  }
+
+  /**
+   * Validate PDF file path
+   */
+  static validatePdfFilePath(filePath: string): void {
+    this.validateField('filePath', filePath, [ValidationType.REQUIRED, ValidationType.STRING]);
+    
+    // Check for dangerous paths
+    const dangerousPatterns = ['../', '~/', '/etc/', '/var/', '/usr/'];
+    for (const pattern of dangerousPatterns) {
+      if (filePath.includes(pattern)) {
+        throw new ValidationError('filePath', 'Path contains dangerous patterns');
+      }
+    }
+    
+    // Ensure it's a PDF file
+    if (!filePath.toLowerCase().endsWith('.pdf')) {
+      throw new ValidationError('filePath', 'File must be a PDF file (.pdf)');
     }
   }
 

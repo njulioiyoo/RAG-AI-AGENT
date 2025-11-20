@@ -98,7 +98,7 @@ export class Database {
       if (error && typeof error === 'object' && 'code' in error) {
         const dbError = error as { code: string; message?: string; detail?: string };
         if (dbError.code === 'ECONNREFUSED') {
-          throw new DatabaseConnectionError('Database server is not reachable');
+        throw new DatabaseConnectionError('Database server is not reachable');
         } else if (dbError.code === '42P01') {
           throw new DatabaseConnectionError(`Table does not exist: ${dbError.message || 'Unknown'}`);
         } else if (dbError.code === '42703') {
@@ -107,7 +107,7 @@ export class Database {
           throw new DatabaseConnectionError(`Duplicate key violation: ${dbError.detail || 'Unknown'}`);
         }
       }
-      throw error;
+        throw error;
     } finally {
       if (client) {
         client.release();

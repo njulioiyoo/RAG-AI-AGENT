@@ -4,13 +4,14 @@
  */
 
 import { createTool } from '@mastra/core';
+import { extractAndValidateParams } from './toolUtils.js';
 import type { UserMemory } from '../../../types/mastra.js';
 
-interface GetUserPreferencesParams {
+interface GetUserPreferencesParams extends Record<string, unknown> {
   userId: string;
 }
 
-interface UpdateUserPreferencesParams {
+interface UpdateUserPreferencesParams extends Record<string, unknown> {
   userId: string;
   preferences: Record<string, unknown>;
 }
@@ -30,38 +31,18 @@ This helps you personalize responses based on user preferences.
 
 Parameters:
 - userId (required): The user ID to get preferences for`,
-    execute: async (context: any): Promise<Record<string, unknown>> => {
+    execute: async (context: unknown): Promise<Record<string, unknown>> => {
       try {
-        // Extract parameters from context
-        // Mastra passes parameters in different ways - try multiple extraction methods
-        // Based on actual logs, Mastra passes as: { context: { userId: '...' }, runId: '...', ... }
-        let params: GetUserPreferencesParams;
-        
-        // Method 1: context.context (Mastra wraps params in a context property)
-        if (context && typeof context === 'object' && context.context && typeof context.context === 'object' && 'userId' in context.context) {
-          params = context.context as GetUserPreferencesParams;
-        }
-        // Method 2: context.args (Mastra might pass as args)
-        else if (context && typeof context === 'object' && context.args && typeof context.args === 'object' && 'userId' in context.args) {
-          params = context.args as GetUserPreferencesParams;
-        }
-        // Method 3: Direct context
-        else if (context && typeof context === 'object' && 'userId' in context) {
-          params = context as GetUserPreferencesParams;
-        }
-        // Method 4: context.params
-        else if (context && typeof context === 'object' && context.params) {
-          params = context.params as GetUserPreferencesParams;
-        }
-        // Method 5: Fallback
-        else {
-          params = (context || {}) as GetUserPreferencesParams;
-        }
+        // Extract parameters from Mastra's ToolExecutionContext
+        const params = extractAndValidateParams<GetUserPreferencesParams>(
+          context,
+          ['userId']
+        );
         
         const { userId } = params;
         
-        if (!userId || typeof userId !== 'string') {
-          throw new Error('userId parameter is required and must be a string');
+        if (typeof userId !== 'string') {
+          throw new Error('userId parameter must be a string');
         }
 
         console.log(`👤 [Tool] Getting preferences for user: ${userId}`);
@@ -97,38 +78,18 @@ Only update preferences when the user explicitly asks for it.
 Parameters:
 - userId (required): The user ID to update preferences for
 - preferences (required): The preferences to update (e.g., { language: "en", response_style: "detailed" })`,
-    execute: async (context: any): Promise<{ success: boolean; message: string }> => {
+    execute: async (context: unknown): Promise<{ success: boolean; message: string }> => {
       try {
-        // Extract parameters from context
-        // Mastra passes parameters in different ways - try multiple extraction methods
-        // Based on actual logs, Mastra passes as: { context: { userId: '...', preferences: {...} }, runId: '...', ... }
-        let params: UpdateUserPreferencesParams;
-        
-        // Method 1: context.context (Mastra wraps params in a context property)
-        if (context && typeof context === 'object' && context.context && typeof context.context === 'object' && 'userId' in context.context && 'preferences' in context.context) {
-          params = context.context as UpdateUserPreferencesParams;
-        }
-        // Method 2: context.args (Mastra might pass as args)
-        else if (context && typeof context === 'object' && context.args && typeof context.args === 'object' && 'userId' in context.args && 'preferences' in context.args) {
-          params = context.args as UpdateUserPreferencesParams;
-        }
-        // Method 3: Direct context
-        else if (context && typeof context === 'object' && 'userId' in context && 'preferences' in context) {
-          params = context as UpdateUserPreferencesParams;
-        }
-        // Method 4: context.params
-        else if (context && typeof context === 'object' && context.params) {
-          params = context.params as UpdateUserPreferencesParams;
-        }
-        // Method 5: Fallback
-        else {
-          params = (context || {}) as UpdateUserPreferencesParams;
-        }
+        // Extract parameters from Mastra's ToolExecutionContext
+        const params = extractAndValidateParams<UpdateUserPreferencesParams>(
+          context,
+          ['userId', 'preferences']
+        );
         
         const { userId, preferences } = params;
         
-        if (!userId || typeof userId !== 'string') {
-          throw new Error('userId parameter is required and must be a string');
+        if (typeof userId !== 'string') {
+          throw new Error('userId parameter must be a string');
         }
         
         if (!preferences || typeof preferences !== 'object') {

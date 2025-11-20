@@ -72,9 +72,12 @@ export class MarkdownIngestionService {
         };
 
         console.log(`🔮 [Ingestion] Processing chunk ${i + 1}/${chunks.length}`);
+        console.log(`📝 [Ingestion] Chunk ${i + 1} preview: ${chunk.substring(0, 100)}...`);
+        console.log(`📏 [Ingestion] Chunk ${i + 1} length: ${chunk.length} characters`);
 
         // Generate embedding for chunk
         const embedding = await this.generateEmbedding(chunk);
+        console.log(`🔮 [Ingestion] Generated embedding for chunk ${i + 1} (dimension: ${embedding.length})`);
 
         // Store chunk with embedding
         const documentId = await this.storeChunkWithEmbedding(
@@ -85,7 +88,7 @@ export class MarkdownIngestionService {
         );
 
         documentIds.push(documentId);
-        console.log(`✅ [Ingestion] Stored chunk ${i + 1} with ID: ${documentId}`);
+        console.log(`✅ [Ingestion] Stored chunk ${i + 1} with ID: ${documentId}, title: "${chunkTitle}"`);
       }
 
       const result: IngestionResult = {
@@ -112,9 +115,12 @@ export class MarkdownIngestionService {
 
   /**
    * Parse markdown content and split into meaningful chunks
+   * Improved to preserve structured data like tables and lists
    */
   private async chunkMarkdownContent(content: string): Promise<string[]> {
     const chunks: string[] = [];
+    const maxChunkSize = 1200; // Reduced for better granularity
+    const minChunkSize = 20; // Reduced minimum to capture short but important info
     
     // Split by markdown headers to create logical sections
     const sections = content.split(/(?=^#+\s)/m);
@@ -122,17 +128,91 @@ export class MarkdownIngestionService {
     for (const section of sections) {
       if (section.trim().length === 0) continue;
 
+      // Check if section contains structured data (tables, lists with IDs/names)
+      const lines = section.split('\n');
+      const hasStructuredData = lines.some(line => {
+        // Check for patterns like employee IDs, names, roles
+        return /\d{7}\s+[A-Z]/.test(line) || // Employee ID pattern
+               /[A-Z][a-z]+\s+[A-Z]\s+[A-Za-z]+/.test(line) || // Name pattern
+               /[A-Z][a-z]+\s+[A-Z][a-z]+\s+\([A-Z]+\)/.test(line) || // Role pattern
+               /\|\s*\d+\s*\|/.test(line); // Table pattern
+      });
+
       // If section is too long, split it further
-      if (section.length > 1500) {
-        const subChunks = this.splitLongSection(section, 1500);
-        chunks.push(...subChunks);
+      if (section.length > maxChunkSize) {
+        if (hasStructuredData) {
+          // For structured data, preserve each entry/row
+          const subChunks = this.splitStructuredSection(section, maxChunkSize);
+          chunks.push(...subChunks);
+        } else {
+          const subChunks = this.splitLongSection(section, maxChunkSize);
+          chunks.push(...subChunks);
+        }
       } else {
         chunks.push(section.trim());
       }
     }
 
-    // Filter out very small chunks
-    return chunks.filter(chunk => chunk.length > 50);
+    // Filter out very small chunks but keep important structured data
+    const filteredChunks = chunks.filter(chunk => {
+      if (chunk.length < minChunkSize) {
+        // Keep chunks that look like structured data even if small
+        const hasStructuredPattern = /\d{7}\s+[A-Z]/.test(chunk) || 
+                                     /[A-Z][a-z]+\s+[A-Z]\s+[A-Za-z]+/.test(chunk) ||
+                                     /[A-Z][a-z]+\s+[A-Z][a-z]+\s+\([A-Z]+\)/.test(chunk);
+        return hasStructuredPattern;
+      }
+      return true;
+    });
+    
+    console.log(`📊 [Markdown Chunking] Created ${filteredChunks.length} chunks (filtered from ${chunks.length} raw chunks)`);
+    console.log(`📊 [Markdown Chunking] Chunk sizes: ${filteredChunks.map(c => c.length).join(', ')}`);
+    
+    return filteredChunks;
+  }
+
+  /**
+   * Split structured sections (tables, lists) while preserving each entry
+   */
+  private splitStructuredSection(section: string, maxLength: number): string[] {
+    const chunks: string[] = [];
+    const lines = section.split('\n');
+    let currentChunk = '';
+    let headerContext = '';
+
+    // Extract header for context
+    const headerMatch = section.match(/^(#+\s.+)$/m);
+    if (headerMatch) {
+      headerContext = headerMatch[1];
+    }
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      
+      // If line looks like a new section header or role title, start new chunk
+      if (/^[A-Z][A-Za-z\s]+\([A-Z]+\)$/.test(trimmedLine) || 
+          (/^[A-Z][A-Za-z\s]+$/.test(trimmedLine) && trimmedLine.length < 50 && !trimmedLine.includes('@'))) {
+        if (currentChunk.trim().length >= 20) {
+          chunks.push(currentChunk.trim());
+        }
+        currentChunk = headerContext ? `${headerContext}\n${trimmedLine}\n` : `${trimmedLine}\n`;
+      } else {
+        // If adding this line exceeds max length, save current chunk
+        if (currentChunk.length + trimmedLine.length > maxLength && currentChunk.trim().length >= 20) {
+          chunks.push(currentChunk.trim());
+          currentChunk = headerContext ? `${headerContext}\n` : '';
+        }
+        currentChunk += trimmedLine + '\n';
+      }
+    }
+
+    // Add the last chunk if it's not empty
+    if (currentChunk.trim().length >= 20) {
+      chunks.push(currentChunk.trim());
+    }
+
+    return chunks;
   }
 
   /**
@@ -151,17 +231,26 @@ export class MarkdownIngestionService {
     }
 
     for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) {
+        // Preserve empty lines for formatting
+        if (currentChunk.length > 0) {
+          currentChunk += '\n';
+        }
+        continue;
+      }
+      
       // If adding this line exceeds max length, save current chunk
-      if (currentChunk.length + line.length > maxLength && currentChunk.length > 0) {
+      if (currentChunk.length + trimmedLine.length > maxLength && currentChunk.trim().length >= 20) {
         chunks.push(currentChunk.trim());
         currentChunk = headerContext ? `${headerContext}\n` : '';
       }
 
-      currentChunk += line + '\n';
+      currentChunk += trimmedLine + '\n';
     }
 
     // Add the last chunk if it's not empty
-    if (currentChunk.trim().length > 0) {
+    if (currentChunk.trim().length >= 20) {
       chunks.push(currentChunk.trim());
     }
 

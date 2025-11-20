@@ -66,13 +66,22 @@ router.post('/documents', (req, res) => {
   ragController.addDocument(req, res);
 });
 
-// Markdown ingestion endpoints
+// Document ingestion endpoints
 router.post('/documents/ingest-markdown', (req, res) => {
   ragController.ingestMarkdown(req, res);
 });
 
 router.post('/documents/ingest-file', (req, res) => {
   ragController.ingestMarkdownFile(req, res);
+});
+
+// PDF ingestion endpoints
+router.post('/documents/ingest-pdf', (req, res) => {
+  ragController.ingestPdf(req, res);
+});
+
+router.post('/documents/ingest-pdf-file', (req, res) => {
+  ragController.ingestPdfFile(req, res);
 });
 
 // API documentation endpoint
@@ -136,9 +145,27 @@ router.get('/docs', (req, res) => {
       {
         path: '/api/documents/ingest-file',
         method: 'POST',
-        description: 'Ingest markdown file from server filesystem with automatic processing',
+        description: 'Ingest file from server filesystem with automatic processing (supports .md, .markdown, .pdf)',
         body: {
-          filePath: 'string (required) - Path to markdown file on server'
+          filePath: 'string (required) - Path to file on server (supports .md, .markdown, .pdf)'
+        },
+        note: 'Auto-detects file format based on extension. Supports both Markdown and PDF files.'
+      },
+      {
+        path: '/api/documents/ingest-pdf',
+        method: 'POST',
+        description: 'Ingest PDF content (base64 encoded) with automatic parsing, chunking, and embedding pipeline',
+        body: {
+          pdfData: 'string (required) - Base64 encoded PDF content',
+          filename: 'string (optional) - Original filename for metadata'
+        }
+      },
+      {
+        path: '/api/documents/ingest-pdf-file',
+        method: 'POST',
+        description: 'Ingest PDF file from server filesystem with automatic processing',
+        body: {
+          filePath: 'string (required) - Path to PDF file on server'
         }
       }
     ]

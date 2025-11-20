@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Validator } from '../utils/validation.js';
 import { ErrorHandler } from '../utils/errors.js';
 import { MarkdownIngestionService } from '../services/ingestion/markdownIngestion.js';
+import { PdfIngestionService } from '../services/ingestion/pdfIngestion.js';
 import type { MastraRAGService as MastraRAGServiceType } from '../services/mastra/mastraRAGService.js';
 
 // Dynamic import for Mastra to avoid ES module issues
@@ -27,6 +28,7 @@ async function loadMastraService(): Promise<void> {
 export class RAGController {
   private mastraService: InstanceType<MastraRAGServiceClass> | null = null;
   private ingestionService: MarkdownIngestionService | null = null;
+  private pdfIngestionService: PdfIngestionService | null = null;
   private isInitialized = false;
 
   constructor() {
@@ -53,8 +55,9 @@ export class RAGController {
       this.mastraService = new MastraRAGService();
       await this.mastraService.initialize();
       
-      // Initialize ingestion service
+      // Initialize ingestion services
       this.ingestionService = new MarkdownIngestionService();
+      this.pdfIngestionService = new PdfIngestionService();
       
       this.isInitialized = true;
       console.log('✅ Mastra RAG Controller initialized successfully');
@@ -354,7 +357,120 @@ export class RAGController {
   }
 
   /**
-   * Ingest markdown file from server filesystem
+   * Ingest PDF from base64 or buffer
+   */
+  async ingestPdf(req: Request, res: Response): Promise<void> {
+    try {
+      this.ensureInitialized();
+      
+      // Validate input
+      Validator.validatePdfRequest(req.body);
+      
+      const { pdfData, filename } = req.body as { 
+        pdfData: string; // base64 encoded PDF
+        filename?: string;
+      };
+      
+      console.log(`📥 [Controller] Starting PDF ingestion: ${filename || 'document.pdf'}`);
+      
+      // Decode base64 PDF data
+      const pdfBuffer = Buffer.from(pdfData, 'base64');
+      
+      const result = await this.pdfIngestionService!.ingestPdfBuffer(
+        pdfBuffer,
+        filename || 'document.pdf'
+      );
+      
+      if (result.success) {
+        res.status(201).json({
+          message: result.message,
+          documentsCreated: result.documentsCreated,
+          documentIds: result.documentIds,
+          framework: 'mastra',
+          pipeline: 'pdf-ingestion',
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(400).json({
+          error: 'PDF ingestion failed',
+          message: result.message,
+          details: result.error
+        });
+      }
+    } catch (error) {
+      ErrorHandler.logError(error, { 
+        context: 'pdf_ingestion_endpoint',
+        filename: req.body?.filename
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
+      });
+    }
+  }
+
+  /**
+   * Ingest PDF file from server filesystem
+   */
+  async ingestPdfFile(req: Request, res: Response): Promise<void> {
+    try {
+      this.ensureInitialized();
+      
+      const { filePath } = req.body;
+      
+      if (!filePath) {
+        res.status(400).json({
+          error: 'File path is required',
+          message: 'Please provide a filePath in the request body'
+        });
+        return;
+      }
+
+      // Validate file path for security
+      Validator.validatePdfFilePath(filePath);
+      
+      console.log(`📁 [Controller] Ingesting PDF file: ${filePath}`);
+      
+      const result = await this.pdfIngestionService!.ingestPdfFile(filePath);
+      
+      if (result.success) {
+        res.status(201).json({
+          message: result.message,
+          documentsCreated: result.documentsCreated,
+          documentIds: result.documentIds,
+          framework: 'mastra',
+          pipeline: 'pdf-file-ingestion',
+          filePath,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(400).json({
+          error: 'PDF file ingestion failed',
+          message: result.message,
+          details: result.error
+        });
+      }
+    } catch (error) {
+      ErrorHandler.logError(error, { 
+        context: 'pdf_file_ingestion_endpoint',
+        filePath: req.body?.filePath
+      });
+      
+      const errorResponse = ErrorHandler.formatErrorResponse(error);
+      res.status(errorResponse.statusCode).json({
+        error: errorResponse.error,
+        code: errorResponse.code,
+        ...(errorResponse.details && { details: errorResponse.details })
+      });
+    }
+  }
+
+  /**
+   * Ingest file from server filesystem (supports markdown and PDF)
+   * Auto-detects file format based on file extension
    */
   async ingestMarkdownFile(req: Request, res: Response): Promise<void> {
     try {
@@ -373,9 +489,27 @@ export class RAGController {
       // Validate file path for security
       Validator.validateFilePath(filePath);
       
-      console.log(`📁 [Controller] Ingesting file: ${filePath}`);
+      // Auto-detect file format based on extension
+      const fileExtension = filePath.toLowerCase().split('.').pop();
+      const isPdf = fileExtension === 'pdf';
+      const isMarkdown = fileExtension === 'md' || fileExtension === 'markdown';
       
-      const result = await this.ingestionService!.ingestMarkdownFile(filePath);
+      console.log(`📁 [Controller] Ingesting file: ${filePath} (format: ${fileExtension})`);
+      
+      let result;
+      if (isPdf) {
+        // Use PDF ingestion service for PDF files
+        result = await this.pdfIngestionService!.ingestPdfFile(filePath);
+      } else if (isMarkdown) {
+        // Use markdown ingestion service for markdown files
+        result = await this.ingestionService!.ingestMarkdownFile(filePath);
+      } else {
+        res.status(400).json({
+          error: 'Unsupported file format',
+          message: `File format .${fileExtension} is not supported. Supported formats: .md, .markdown, .pdf`
+        });
+        return;
+      }
       
       if (result.success) {
         res.status(201).json({
@@ -383,8 +517,9 @@ export class RAGController {
           documentsCreated: result.documentsCreated,
           documentIds: result.documentIds,
           framework: 'mastra',
-          pipeline: 'file-ingestion',
+          pipeline: isPdf ? 'pdf-file-ingestion' : 'markdown-file-ingestion',
           filePath,
+          fileType: fileExtension,
           timestamp: new Date().toISOString()
         });
       } else {
@@ -420,6 +555,9 @@ export class RAGController {
         }
         if (this.ingestionService) {
           await this.ingestionService.close();
+        }
+        if (this.pdfIngestionService) {
+          await this.pdfIngestionService.close();
         }
         this.isInitialized = false;
         console.log('🔌 RAG Controller shutdown complete');

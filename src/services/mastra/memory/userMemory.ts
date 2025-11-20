@@ -84,10 +84,10 @@ export class UserMemoryManager {
       
       try {
         const historyResult: QueryResult<ConversationHistoryRow> = await this.dbPool.query(historyQuery, [
-          userId, 
-          sessionId, 
-          SERVICE_CONSTANTS.MAX_HISTORY_TURNS
-        ]);
+        userId, 
+        sessionId, 
+        SERVICE_CONSTANTS.MAX_HISTORY_TURNS
+      ]);
 
         conversationHistory = historyResult.rows.map(row => ({
           user_message: row.user_message,
@@ -151,11 +151,11 @@ export class UserMemoryManager {
       `;
 
       try {
-        await this.dbPool.query(cleanupQuery, [
-          userId, 
-          sessionId, 
-          SERVICE_CONSTANTS.MAX_HISTORY_TURNS * 2
-        ]);
+      await this.dbPool.query(cleanupQuery, [
+        userId, 
+        sessionId, 
+        SERVICE_CONSTANTS.MAX_HISTORY_TURNS * 2
+      ]);
       } catch (cleanupError) {
         // Non-critical error, just log it
         console.warn(`⚠️ [UserMemory] Could not cleanup old conversations: ${cleanupError}`);
